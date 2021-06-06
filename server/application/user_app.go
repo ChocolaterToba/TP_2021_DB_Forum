@@ -14,16 +14,52 @@ func NewUserApp(userRepo repository.UserRepositoryInterface) *UserApp {
 }
 
 type UserAppInterface interface {
-	CreateUser(user *entity.User) (int, error)
+	CreateUser(user *entity.User) (interface{}, error) // Returns int, nil on success, []*entity.User, error on failure
 	GetUserByID(userID int) (*entity.User, error)
 	GetUserByUsername(username string) (*entity.User, error)
 	EditUser(user *entity.User) error
 }
 
 // CreateUser adds new user to database with passed fields
-// It returns user's assigned ID and nil on success, any number and error on failure
-func (userApp *UserApp) CreateUser(user *entity.User) (int, error) {
-	return userApp.userRepo.CreateUser(user)
+// It returns int, nil on success, {[]*entity.User (slice of conflicting users) OR nil}, error on failure
+func (userApp *UserApp) CreateUser(user *entity.User) (interface{}, error) {
+	userID, err := userApp.userRepo.CreateUser(user)
+	if err != nil {
+		switch err {
+		case entity.UserConflictError:
+			var users []*entity.User
+			usernameConflict, err := userApp.userRepo.GetUserByUsername(user.Username)
+			switch err {
+			case nil:
+				users = append(users, usernameConflict)
+			case entity.UserNotFoundError:
+				// Intentionally a no-op
+			default:
+				return nil, err
+			}
+
+			emailConflict, err := userApp.userRepo.GetUserByEmail(user.EMail)
+			switch err {
+			case nil:
+				users = append(users, emailConflict)
+			case entity.UserNotFoundError:
+				// Intentionally a no-op
+			default:
+				return nil, err
+			}
+
+			if len(users) == 0 {
+				return nil, entity.UserConflictNotFoundError
+			}
+
+			return users, entity.UserConflictError
+
+		default:
+			return nil, err
+		}
+	}
+
+	return userID, nil
 }
 
 // EditUser saves user to database with passed fields

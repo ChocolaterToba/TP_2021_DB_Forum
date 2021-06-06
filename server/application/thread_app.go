@@ -16,10 +16,10 @@ func NewThreadApp(threadRepo repository.ThreadRepositoryInterface) *ThreadApp {
 type ThreadAppInterface interface {
 	CreateThread(thread *entity.Thread) (int, error)
 	GetThreadByID(threadID int) (*entity.Thread, error)
-	GetThreadByIDString(threadIDString string) (*entity.Thread, error)
+	GetThreadByForumname(threadForumname string) (*entity.Thread, error)
 	EditThread(thread *entity.Thread) error
 	GetPostsByThreadID(threadID int) ([]*entity.Post, error)
-	GetPostsByThreadIDString(threadIDstring string) ([]*entity.Post, error)
+	GetPostsByThreadForumname(threadIDstring string) ([]*entity.Post, error)
 }
 
 // CreateThread adds new thread to database with passed fields
@@ -40,10 +40,10 @@ func (threadApp *ThreadApp) GetThreadByID(threadID int) (*entity.Thread, error) 
 	return threadApp.threadRepo.GetThreadByID(threadID)
 }
 
-// GetThreadByIDString fetches thread with passed thread string ID ("slug") from database
+// GetThreadByForumname fetches thread with passed thread string ID ("slug") from database
 // It returns that thread, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetThreadByIDString(threadIDString string) (*entity.Thread, error) {
-	return threadApp.threadRepo.GetThreadByIDString(threadIDString)
+func (threadApp *ThreadApp) GetThreadByForumname(threadForumname string) (*entity.Thread, error) {
+	return threadApp.threadRepo.GetThreadByForumname(threadForumname)
 }
 
 // GetPostsByThreadID fetches all posts in specified thread
@@ -52,8 +52,8 @@ func (threadApp *ThreadApp) GetPostsByThreadID(threadID int) ([]*entity.Post, er
 	return threadApp.threadRepo.GetPostsByThreadID(threadID)
 }
 
-// GetPostsByThreadIDString fetches all posts in specified thread
+// GetPostsByThreadForumname fetches all posts in specified thread
 // It returns slice of these posts, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetPostsByThreadIDString(threadIDstring string) ([]*entity.Post, error) {
-	return threadApp.threadRepo.GetPostsByThreadIDString(threadIDstring)
+func (threadApp *ThreadApp) GetPostsByThreadForumname(threadIDstring string) ([]*entity.Post, error) {
+	return threadApp.threadRepo.GetPostsByThreadForumname(threadIDstring)
 }

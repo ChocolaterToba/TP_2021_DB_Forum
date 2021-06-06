@@ -8,7 +8,7 @@ type Post struct {
 	AuthorUsername string    `json:"author"`
 	Message        string    `json:"message"`
 	IsEdited       bool      `json:"isEdited"`
-	ForumName      string    `json:"forum"`
+	Forumname      string    `json:"forum"`
 	ThreadID       int       `json:"thread"`
 	Created        time.Time `json:"created"`
 }

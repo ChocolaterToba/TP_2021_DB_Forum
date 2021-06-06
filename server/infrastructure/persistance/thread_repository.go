@@ -22,7 +22,7 @@ func (threadRepo *ThreadRepo) GetThreadByID(threadID int) (*entity.Thread, error
 	return nil, nil
 }
 
-func (threadRepo *ThreadRepo) GetThreadByIDString(threadIDString string) (*entity.Thread, error) {
+func (threadRepo *ThreadRepo) GetThreadByForumname(threadForumname string) (*entity.Thread, error) {
 	return nil, nil
 }
 
@@ -34,6 +34,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadID(threadID int) ([]*entity.Post, 
 	return nil, nil
 }
 
-func (threadRepo *ThreadRepo) GetPostsByThreadIDString(threadIDstring string) ([]*entity.Post, error) {
+func (threadRepo *ThreadRepo) GetPostsByThreadForumname(threadIDstring string) ([]*entity.Post, error) {
 	return nil, nil
 }

@@ -4,7 +4,7 @@ type Forum struct {
 	ForumID      int    `json:"-"`
 	Title        string `json:"title"`
 	Creator      string `json:"user"`
-	IDString     string `json:"slug"`
-	postsCount   int    `json:"posts"`
-	threadsCount int    `json:"threads"`
+	Forumname    string `json:"slug"`
+	PostsCount   int    `json:"posts"`
+	ThreadsCount int    `json:"threads"`
 }
