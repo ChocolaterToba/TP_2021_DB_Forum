@@ -7,3 +7,8 @@ type User struct {
 	Description string `json:"about"`
 	EMail       string `json:"email"`
 }
+
+type VoteInput struct {
+	Username string `json:"nickname"`
+	Vote     int    `json:"voice"`
+}

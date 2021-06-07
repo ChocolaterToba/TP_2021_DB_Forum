@@ -184,3 +184,105 @@ func (threadRepo *ThreadRepo) GetPostsByThreadID(threadID int) ([]*entity.Post, 
 	}
 	return posts, nil
 }
+
+const insertVoteByThreadnameQuery string = "INSERT INTO Votes (threadname, username, upvote)\n" +
+	"VALUES ($1, $2, $3)"
+const increaseThreadRatingQuery string = "UPDATE Threads\n" +
+	"SET rating = rating + $2\n" +
+	"WHERE threadname=$1"
+const decreaseThreadRatingQuery string = "UPDATE Threads\n" +
+	"SET rating = rating - $2\n" +
+	"WHERE threadname=$1"
+
+func (threadRepo *ThreadRepo) VoteThreadByThreadname(threadname string, username string, upvote bool) error {
+	tx, err := threadRepo.postgresDB.Begin(context.Background())
+	if err != nil {
+		return entity.TransactionBeginError
+	}
+	defer tx.Rollback(context.Background())
+
+	_, err = tx.Exec(context.Background(), insertVoteByThreadnameQuery, threadname, username, upvote)
+	if err != nil {
+		switch {
+		case strings.Contains(err.Error(), "violates foreign key"):
+			return entity.ThreadNotFoundError // TODO: differentiate between user not found and thread not found
+		case strings.Contains(err.Error(), "constraint"):
+			return entity.VoteAlreadyExistsError
+		default:
+			return err
+		}
+	}
+
+	switch upvote {
+	case true:
+		_, err = tx.Exec(context.Background(), increaseThreadRatingQuery, threadname, 1)
+		if err != nil {
+			return err
+		}
+	case false:
+		_, err = tx.Exec(context.Background(), decreaseThreadRatingQuery, threadname, 1)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return entity.TransactionCommitError
+	}
+	return nil
+}
+
+const getVoteByThreadnameQuery string = "SELECT upvote\n" +
+	"FROM Votes\n" +
+	"WHERE threadname=$1 AND username=$2"
+const updateVoteByThreadnameQuery string = "UPDATE Votes\n" +
+	"SET upvote = $3\n" +
+	"WHERE threadname=$1 AND username=$2"
+
+func (threadRepo *ThreadRepo) ChangeVoteThreadByThreadname(threadname string, username string, upvote bool) error {
+	tx, err := threadRepo.postgresDB.Begin(context.Background())
+	if err != nil {
+		return entity.TransactionBeginError
+	}
+	defer tx.Rollback(context.Background())
+
+	row := tx.QueryRow(context.Background(), getVoteByThreadnameQuery, threadname, username)
+	var wasUpvoted bool
+	err = row.Scan(&wasUpvoted)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return entity.VoteNotFoundError
+		}
+
+		return err
+	}
+
+	if wasUpvoted == upvote {
+		return entity.VoteAlreadyExistsError
+	}
+
+	switch upvote {
+	case true:
+		_, err = tx.Exec(context.Background(), increaseThreadRatingQuery, threadname, 2) // 2 to compensate previous downvote
+		if err != nil {
+			return err
+		}
+	case false:
+		_, err = tx.Exec(context.Background(), decreaseThreadRatingQuery, threadname, 2)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = tx.Exec(context.Background(), updateVoteByThreadnameQuery, threadname, username, upvote)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return entity.TransactionCommitError
+	}
+	return nil
+}

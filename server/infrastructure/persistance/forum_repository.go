@@ -110,11 +110,12 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 	return &forum, nil
 }
 
-const getUsersByForumnameQuery string = "SELECT user.userID, user.username, user.email, user.fullName, user.description\n" +
-	"FROM Users as user\n" +
-	"INNER JOIN POSTS as post\n" +
-	"ON post.creator = user.username\n" +
-	"WHERE post.forumname=$1"
+const getUsersByForumnameQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
+	"FROM Users as users\n" +
+	"INNER JOIN Posts as posts\n" +
+	"ON posts.creator = users.username\n" +
+	"INNER JOIN Threads as threads\n" +
+	"ON threads.threadID = posts.threadID AND threads.forumname=$1"
 
 func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.User, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())

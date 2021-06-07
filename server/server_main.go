@@ -4,8 +4,7 @@ import (
 	"context"
 	"dbforum/application"
 	"dbforum/infrastructure/persistance"
-	"dbforum/interfaces/forum"
-	"dbforum/interfaces/user"
+	"dbforum/interfaces"
 	"fmt"
 	"log"
 	"os"
@@ -32,14 +31,17 @@ func runServer(addr string) {
 		return
 	}
 
-	repoUser := persistance.NewUserRepo(postgresConn)
-	repoForum := persistance.NewForumRepo(postgresConn)
+	userRepo := persistance.NewUserRepo(postgresConn)
+	forumRepo := persistance.NewForumRepo(postgresConn)
+	threadRepo := persistance.NewThreadRepo(postgresConn)
 
-	userApp := application.NewUserApp(repoUser)
-	forumApp := application.NewForumApp(repoForum)
+	userApp := application.NewUserApp(userRepo)
+	forumApp := application.NewForumApp(forumRepo)
+	threadApp := application.NewThreadApp(threadRepo)
 
-	userInfo := user.NewUserInfo(userApp)
-	forumInfo := forum.NewForumInfo(forumApp)
+	userInfo := interfaces.NewUserInfo(userApp)
+	forumInfo := interfaces.NewForumInfo(forumApp)
+	threadInfo := interfaces.NewThreadInfo(threadApp)
 
 	router := router.New()
 
@@ -49,6 +51,14 @@ func runServer(addr string) {
 
 	router.POST("/forum/create", forumInfo.CreateForum)
 	router.GET("/forum/{forumname}/details", forumInfo.GetForum)
+	router.GET("/forum/{forumname}/users", forumInfo.GetForumUsers)
+	router.GET("/forum/{forumname}/threads", forumInfo.GetForumThreads)
+
+	router.POST("/forum/{forumname}/create", threadInfo.CreateThread)
+	router.GET("/thread/{threadnameOrID}/details", threadInfo.GetThread)
+	router.POST("/thread/{threadnameOrID}/details", threadInfo.EditThread)
+	router.GET("/thread/{threadnameOrID}/posts", threadInfo.GetThreadPosts)
+	router.POST("/thread/{threadnameOrID}/vote", threadInfo.VoteThread)
 
 	fmt.Printf("Starting server at localhost%s\n", addr)
 	fasthttp.ListenAndServe(addr, router.Handler)

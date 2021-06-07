@@ -1,4 +1,4 @@
-package user
+package interfaces
 
 import (
 	"dbforum/application"
@@ -50,10 +50,10 @@ func (userInfo *UserInfo) CreateUser(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(http.StatusConflict)
 			ctx.SetBody(responseBody)
 			return
+		default:
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
 		}
-
-		ctx.SetStatusCode(http.StatusInternalServerError)
-		return
 	}
 
 	responseBody, err := json.Marshal(userInput)
@@ -73,7 +73,7 @@ func (userInfo *UserInfo) GetUser(ctx *fasthttp.RequestCtx) {
 
 	switch usernameInterface.(type) {
 	case string:
-		username = ctx.UserValue("username").(string)
+		username = usernameInterface.(string)
 	default:
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
@@ -115,7 +115,7 @@ func (userInfo *UserInfo) EditUser(ctx *fasthttp.RequestCtx) {
 
 	switch usernameInterface.(type) {
 	case string:
-		userInput.Username = ctx.UserValue("username").(string)
+		userInput.Username = usernameInterface.(string)
 	default:
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
@@ -153,10 +153,10 @@ func (userInfo *UserInfo) EditUser(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(http.StatusNotFound)
 			ctx.SetBody(responseBody)
 			return
+		default:
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
 		}
-
-		ctx.SetStatusCode(http.StatusInternalServerError)
-		return
 	}
 
 	responseBody, err := json.Marshal(userInput)

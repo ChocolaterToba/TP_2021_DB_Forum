@@ -20,6 +20,9 @@ const ForumConflictNotFoundError customError = "Could not find conflicting forum
 const ThreadNotFoundError customError = "Could not find thread"
 const ThreadConflictError customError = "Could not add thread due to fields conflicting"
 const ThreadConflictNotFoundError customError = "Could not find conflicting thread"
+const IncorrectVoteAmountError customError = "Vote values other than -1 and +1 are unacceptable"
+const VoteNotFoundError customError = "Vote could not be found"
+const VoteAlreadyExistsError customError = "Vote already exists"
 
 const PostNotFoundError customError = "Could not find post"
 const ParentNotFoundError customError = "Could not find post's parent in post's thread"
