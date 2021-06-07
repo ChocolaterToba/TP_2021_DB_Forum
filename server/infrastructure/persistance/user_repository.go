@@ -76,7 +76,7 @@ func (userRepo *UserRepo) GetUserByID(userID int) (*entity.User, error) {
 	return &user, nil
 }
 
-const getUserByUsernameQuery string = "SELECT userID, email, fullName, description\n" +
+const getUserByUsernameQuery string = "SELECT userID, username, email, fullName, description\n" +
 	"FROM Users WHERE username=$1"
 
 func (userRepo *UserRepo) GetUserByUsername(username string) (*entity.User, error) {
@@ -86,10 +86,10 @@ func (userRepo *UserRepo) GetUserByUsername(username string) (*entity.User, erro
 	}
 	defer tx.Rollback(context.Background())
 
-	user := entity.User{Username: username}
+	user := entity.User{}
 
 	row := tx.QueryRow(context.Background(), getUserByUsernameQuery, username)
-	err = row.Scan(&user.UserID, &user.EMail, &user.FullName, &user.Description)
+	err = row.Scan(&user.UserID, &user.Username, &user.EMail, &user.FullName, &user.Description)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.UserNotFoundError
@@ -104,7 +104,7 @@ func (userRepo *UserRepo) GetUserByUsername(username string) (*entity.User, erro
 	return &user, nil
 }
 
-const getUserByEMailQuery string = "SELECT userID, username, fullName, description\n" +
+const getUserByEMailQuery string = "SELECT userID, username, email, fullName, description\n" +
 	"FROM Users WHERE email=$1"
 
 func (userRepo *UserRepo) GetUserByEmail(email string) (*entity.User, error) {
@@ -114,10 +114,10 @@ func (userRepo *UserRepo) GetUserByEmail(email string) (*entity.User, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	user := entity.User{EMail: email}
+	user := entity.User{}
 
 	row := tx.QueryRow(context.Background(), getUserByEMailQuery, email)
-	err = row.Scan(&user.UserID, &user.Username, &user.FullName, &user.Description)
+	err = row.Scan(&user.UserID, &user.Username, &user.EMail, &user.FullName, &user.Description)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.UserNotFoundError

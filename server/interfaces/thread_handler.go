@@ -4,7 +4,6 @@ import (
 	"dbforum/application"
 	"dbforum/domain/entity"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -283,7 +282,6 @@ func (threadInfo *ThreadInfo) VoteThread(ctx *fasthttp.RequestCtx) {
 	voteInput := new(entity.VoteInput)
 	err := json.Unmarshal(ctx.Request.Body(), voteInput)
 	if err != nil {
-		fmt.Println(err)
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
 	}

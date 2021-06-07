@@ -3,6 +3,7 @@ package application
 import (
 	"dbforum/domain/entity"
 	"dbforum/domain/repository"
+	"time"
 )
 
 type PostApp struct {
@@ -18,37 +19,42 @@ func NewPostApp(postRepo repository.PostRepositoryInterface, threadApp ThreadApp
 }
 
 type PostAppInterface interface {
-	CreatePost(post *entity.Post) (interface{}, error)
+	CreatePost(post *entity.Post) (*entity.Post, error)
 	GetPostByID(postID int) (*entity.Post, error)
 	GetChildPosts(postID int) ([]*entity.Post, error)
 	EditPost(post *entity.Post) error
 }
 
 // CreatePost adds new post to database with passed fields
-// It returns post's assigned ID and nil on success, any number and error on failure
-func (postApp *PostApp) CreatePost(post *entity.Post) (int, error) {
-	//Checking if parent post exists in same thread
-	posts, err := postApp.threadApp.GetPostsByThreadID(post.ThreadID)
-	if err != nil {
-		return -1, err
-	}
-	parentFound := false
-	for _, parent := range posts {
-		if parent.PostID == post.ParentID {
-			parentFound = true
-			break
+// It returns created port and nil on success, any number and error on failure
+func (postApp *PostApp) CreatePost(post *entity.Post) (*entity.Post, error) {
+	if post.ParentID != 0 {
+		//Checking if parent post exists in same thread
+		posts, err := postApp.threadApp.GetPostsByThreadID(post.ThreadID, "nosort", true)
+		if err != nil {
+			return nil, err
+		}
+		parentFound := false
+		for _, parent := range posts.([]*entity.Post) {
+			if parent.PostID == post.ParentID {
+				parentFound = true
+				break
+			}
+		}
+		if !parentFound {
+			return nil, entity.ParentNotFoundError
 		}
 	}
-	if !parentFound {
-		return -1, entity.ParentNotFoundError
-	}
 
-	postID, err := postApp.CreatePost(post)
+	post.Created = time.Now()
+
+	var err error
+	post.PostID, err = postApp.postRepo.CreatePost(post)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	return postID, nil
+	return post, nil
 }
 
 // EditPost saves post to database with passed fields

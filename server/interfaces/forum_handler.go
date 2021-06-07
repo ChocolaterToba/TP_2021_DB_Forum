@@ -4,7 +4,6 @@ import (
 	"dbforum/application"
 	"dbforum/domain/entity"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/valyala/fasthttp"
@@ -30,7 +29,6 @@ func (forumInfo *ForumInfo) CreateForum(ctx *fasthttp.RequestCtx) {
 
 	createForumInfo, err := forumInfo.forumApp.CreateForum(forumInput)
 	if err != nil {
-		fmt.Println(err)
 		switch err {
 		case entity.ForumConflictError:
 			responseBody, err := json.Marshal(createForumInfo.(*entity.Forum))

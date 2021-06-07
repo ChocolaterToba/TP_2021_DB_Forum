@@ -34,36 +34,44 @@ func runServer(addr string) {
 	userRepo := persistance.NewUserRepo(postgresConn)
 	forumRepo := persistance.NewForumRepo(postgresConn)
 	threadRepo := persistance.NewThreadRepo(postgresConn)
+	postRepo := persistance.NewPostRepo(postgresConn)
 
 	userApp := application.NewUserApp(userRepo)
 	forumApp := application.NewForumApp(forumRepo)
 	threadApp := application.NewThreadApp(threadRepo)
+	postApp := application.NewPostApp(postRepo, threadApp)
 
 	userInfo := interfaces.NewUserInfo(userApp)
 	forumInfo := interfaces.NewForumInfo(forumApp)
 	threadInfo := interfaces.NewThreadInfo(threadApp)
+	postInfo := interfaces.NewPostInfo(postApp, threadApp)
 
 	router := router.New()
 
-	router.POST("/user/{username}/create", userInfo.CreateUser)
-	router.GET("/user/{username}/profile", userInfo.GetUser)
-	router.POST("/user/{username}/profile", userInfo.EditUser)
+	prefix := "/api"
+	router.POST(prefix+"/user/{username}/create", userInfo.CreateUser)
+	router.GET(prefix+"/user/{username}/profile", userInfo.GetUser)
+	router.POST(prefix+"/user/{username}/profile", userInfo.EditUser)
 
-	router.POST("/forum/create", forumInfo.CreateForum)
-	router.GET("/forum/{forumname}/details", forumInfo.GetForum)
-	router.GET("/forum/{forumname}/users", forumInfo.GetForumUsers)
-	router.GET("/forum/{forumname}/threads", forumInfo.GetForumThreads)
+	router.POST(prefix+"/forum/create", forumInfo.CreateForum)
+	router.GET(prefix+"/forum/{forumname}/details", forumInfo.GetForum)
+	router.GET(prefix+"/forum/{forumname}/users", forumInfo.GetForumUsers)
+	router.GET(prefix+"/forum/{forumname}/threads", forumInfo.GetForumThreads)
 
-	router.POST("/forum/{forumname}/create", threadInfo.CreateThread)
-	router.GET("/thread/{threadnameOrID}/details", threadInfo.GetThread)
-	router.POST("/thread/{threadnameOrID}/details", threadInfo.EditThread)
-	router.GET("/thread/{threadnameOrID}/posts", threadInfo.GetThreadPosts)
-	router.POST("/thread/{threadnameOrID}/vote", threadInfo.VoteThread)
+	router.POST(prefix+"/forum/{forumname}/create", threadInfo.CreateThread)
+	router.GET(prefix+"/thread/{threadnameOrID}/details", threadInfo.GetThread)
+	router.POST(prefix+"/thread/{threadnameOrID}/details", threadInfo.EditThread)
+	router.GET(prefix+"/thread/{threadnameOrID}/posts", threadInfo.GetThreadPosts)
+	router.POST(prefix+"/thread/{threadnameOrID}/vote", threadInfo.VoteThread)
+
+	router.POST(prefix+"/thread/{threadnameOrID}/create", postInfo.CreatePost)
+	router.GET(prefix+"/post/{postID}/details", postInfo.GetPost)
+	router.POST(prefix+"/post/{postID}/details", postInfo.EditPost)
 
 	fmt.Printf("Starting server at localhost%s\n", addr)
 	fasthttp.ListenAndServe(addr, router.Handler)
 }
 
 func main() {
-	runServer(":5050")
+	runServer(":5000")
 }

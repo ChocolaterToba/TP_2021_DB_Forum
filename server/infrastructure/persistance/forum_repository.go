@@ -3,7 +3,6 @@ package persistance
 import (
 	"context"
 	"dbforum/domain/entity"
-	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v4"
@@ -35,7 +34,6 @@ func (forumRepo *ForumRepo) CreateForum(forum *entity.Forum) (int, error) {
 	newForumID := 0
 	err = row.Scan(&newForumID)
 	if err != nil {
-		fmt.Println(err)
 		switch {
 		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
 			return -1, entity.ForumConflictError

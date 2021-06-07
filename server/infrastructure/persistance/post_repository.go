@@ -58,8 +58,12 @@ func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
 	return newPostID, nil
 }
 
-const getPostByIDQuery string = "SELECT parentID, creator, message, isEdited, threadID, created\n" +
-	"FROM Posts WHERE postID=$1"
+const getPostByIDQuery string = "SELECT post.parentID, post.creator, post.message, " +
+	"thread.forumname, post.isEdited, post.threadID, post.created\n" +
+	"FROM Posts as post\n" +
+	"INNER JOIN Threads as thread\n" +
+	"ON post.threadID = thread.threadID\n" +
+	"WHERE post.postID=$1"
 
 func (postRepo *PostRepo) GetPostByID(postID int) (*entity.Post, error) {
 	tx, err := postRepo.postgresDB.Begin(context.Background())
@@ -71,8 +75,8 @@ func (postRepo *PostRepo) GetPostByID(postID int) (*entity.Post, error) {
 	post := entity.Post{PostID: postID}
 
 	row := tx.QueryRow(context.Background(), getPostByIDQuery, postID)
-	err = row.Scan(&post.ParentID, &post.Created, &post.Message,
-		&post.IsEdited, &post.ThreadID, &post.Created)
+	err = row.Scan(&post.ParentID, &post.Creator, &post.Message,
+		&post.Forumname, &post.IsEdited, &post.ThreadID, &post.Created)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError
@@ -87,8 +91,12 @@ func (postRepo *PostRepo) GetPostByID(postID int) (*entity.Post, error) {
 	return &post, nil
 }
 
-const getChildPostsByParentIDQuery string = "SELECT postID, creator, message, isEdited, threadID, created\n" +
-	"FROM Posts WHERE parentID=$1"
+const getChildPostsByParentIDQuery string = "SELECT post.parentID, post.creator, post.message, " +
+	"thread.forumname, post.isEdited, post.threadID, post.created\n" +
+	"FROM Posts as post\n" +
+	"INNER JOIN Threads as thread\n" +
+	"ON post.threadID = thread.threadID\n" +
+	"WHERE post.parentID=$1"
 
 func (postRepo *PostRepo) GetChildPosts(parentID int) ([]*entity.Post, error) {
 	tx, err := postRepo.postgresDB.Begin(context.Background())

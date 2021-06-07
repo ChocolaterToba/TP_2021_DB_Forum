@@ -52,6 +52,10 @@ func (userApp *UserApp) CreateUser(user *entity.User) (interface{}, error) {
 				return nil, entity.UserConflictNotFoundError
 			}
 
+			if len(users) == 2 && users[0].UserID == users[1].UserID { // Both conflicts are the same user
+				users = users[:1]
+			}
+
 			return users, entity.UserConflictError
 
 		default:
