@@ -14,18 +14,37 @@ func NewThreadApp(threadRepo repository.ThreadRepositoryInterface) *ThreadApp {
 }
 
 type ThreadAppInterface interface {
-	CreateThread(thread *entity.Thread) (int, error)
+	CreateThread(thread *entity.Thread) (interface{}, error) // Returns int, nil on success, *entity.Forum, error on failure
 	GetThreadByID(threadID int) (*entity.Thread, error)
-	GetThreadByForumname(threadForumname string) (*entity.Thread, error)
+	GetThreadByThreadname(threadname string) (*entity.Thread, error)
 	EditThread(thread *entity.Thread) error
 	GetPostsByThreadID(threadID int) ([]*entity.Post, error)
-	GetPostsByThreadForumname(threadIDstring string) ([]*entity.Post, error)
+	GetPostsByThreadname(threadname string) ([]*entity.Post, error)
 }
 
 // CreateThread adds new thread to database with passed fields
-// It returns thread's assigned ID and nil on success, any number and error on failure
-func (threadApp *ThreadApp) CreateThread(thread *entity.Thread) (int, error) {
-	return threadApp.threadRepo.CreateThread(thread)
+// It returns int, nil on success, *entity.Forum (database conflict), error on failure
+func (threadApp *ThreadApp) CreateThread(thread *entity.Thread) (interface{}, error) {
+	threadID, err := threadApp.threadRepo.CreateThread(thread)
+	if err != nil {
+		switch err {
+		case entity.ThreadConflictError:
+			threadnameConflict, err := threadApp.threadRepo.GetThreadByThreadname(thread.Threadname)
+			switch err {
+			case nil:
+				return threadnameConflict, entity.ForumConflictError
+			case entity.ThreadNotFoundError:
+				return nil, entity.ThreadConflictNotFoundError
+			default:
+				return nil, err
+			}
+
+		default:
+			return nil, err
+		}
+	}
+
+	return threadID, nil
 }
 
 // EditThread saves thread to database with passed fields
@@ -40,10 +59,10 @@ func (threadApp *ThreadApp) GetThreadByID(threadID int) (*entity.Thread, error) 
 	return threadApp.threadRepo.GetThreadByID(threadID)
 }
 
-// GetThreadByForumname fetches thread with passed thread string ID ("slug") from database
+// GetThreadByThreadname fetches thread with passed thread string ID ("slug") from database
 // It returns that thread, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetThreadByForumname(threadForumname string) (*entity.Thread, error) {
-	return threadApp.threadRepo.GetThreadByForumname(threadForumname)
+func (threadApp *ThreadApp) GetThreadByThreadname(threadname string) (*entity.Thread, error) {
+	return threadApp.threadRepo.GetThreadByThreadname(threadname)
 }
 
 // GetPostsByThreadID fetches all posts in specified thread
@@ -52,8 +71,13 @@ func (threadApp *ThreadApp) GetPostsByThreadID(threadID int) ([]*entity.Post, er
 	return threadApp.threadRepo.GetPostsByThreadID(threadID)
 }
 
-// GetPostsByThreadForumname fetches all posts in specified thread
+// GetPostsByThreadname fetches all posts in specified thread
 // It returns slice of these posts, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetPostsByThreadForumname(threadIDstring string) ([]*entity.Post, error) {
-	return threadApp.threadRepo.GetPostsByThreadForumname(threadIDstring)
+func (threadApp *ThreadApp) GetPostsByThreadname(threadname string) ([]*entity.Post, error) {
+	thread, err := threadApp.GetThreadByThreadname(threadname)
+	if err != nil {
+		return nil, err
+	}
+
+	return threadApp.threadRepo.GetPostsByThreadID(thread.ThreadID)
 }

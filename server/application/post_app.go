@@ -6,15 +6,19 @@ import (
 )
 
 type PostApp struct {
-	postRepo repository.PostRepositoryInterface
+	postRepo  repository.PostRepositoryInterface
+	threadApp ThreadAppInterface
 }
 
-func NewPostApp(postRepo repository.PostRepositoryInterface) *PostApp {
-	return &PostApp{postRepo}
+func NewPostApp(postRepo repository.PostRepositoryInterface, threadApp ThreadAppInterface) *PostApp {
+	return &PostApp{
+		postRepo:  postRepo,
+		threadApp: threadApp,
+	}
 }
 
 type PostAppInterface interface {
-	CreatePost(post *entity.Post) (int, error)
+	CreatePost(post *entity.Post) (interface{}, error)
 	GetPostByID(postID int) (*entity.Post, error)
 	GetChildPosts(postID int) ([]*entity.Post, error)
 	EditPost(post *entity.Post) error
@@ -23,7 +27,28 @@ type PostAppInterface interface {
 // CreatePost adds new post to database with passed fields
 // It returns post's assigned ID and nil on success, any number and error on failure
 func (postApp *PostApp) CreatePost(post *entity.Post) (int, error) {
-	return postApp.postRepo.CreatePost(post)
+	//Checking if parent post exists in same thread
+	posts, err := postApp.threadApp.GetPostsByThreadID(post.ThreadID)
+	if err != nil {
+		return -1, err
+	}
+	parentFound := false
+	for _, parent := range posts {
+		if parent.PostID == post.ParentID {
+			parentFound = true
+			break
+		}
+	}
+	if !parentFound {
+		return -1, entity.ParentNotFoundError
+	}
+
+	postID, err := postApp.CreatePost(post)
+	if err != nil {
+		return -1, err
+	}
+
+	return postID, nil
 }
 
 // EditPost saves post to database with passed fields

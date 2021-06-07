@@ -38,8 +38,10 @@ func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, error) {
 	err = row.Scan(&newThreadID)
 	if err != nil {
 		switch {
+		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
+			return -1, entity.ThreadConflictError
 		case strings.Contains(err.Error(), "violates foreign key"):
-			return -1, entity.ThreadNotFoundError
+			return -1, entity.ForumNotFoundError // TODO: differentiate between user not found and forum not found
 		default:
 			return -1, err
 		}
