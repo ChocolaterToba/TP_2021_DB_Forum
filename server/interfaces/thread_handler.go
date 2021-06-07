@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -38,6 +39,10 @@ func (threadInfo *ThreadInfo) CreateThread(ctx *fasthttp.RequestCtx) {
 
 	//TODO: validate
 
+	if threadInput.Created == (time.Time{}) {
+		threadInput.Created = time.Now()
+	}
+
 	newThread, err := threadInfo.threadApp.CreateThread(threadInput)
 	if err != nil {
 		switch err {
@@ -49,6 +54,7 @@ func (threadInfo *ThreadInfo) CreateThread(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusConflict)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		case entity.ForumNotFoundError:
@@ -59,6 +65,7 @@ func (threadInfo *ThreadInfo) CreateThread(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -73,8 +80,8 @@ func (threadInfo *ThreadInfo) CreateThread(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusCreated)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -109,6 +116,7 @@ func (threadInfo *ThreadInfo) GetThread(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -123,8 +131,8 @@ func (threadInfo *ThreadInfo) GetThread(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -140,7 +148,7 @@ func (threadInfo *ThreadInfo) EditThread(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	threadInput := new(entity.Thread)
+	threadInput := new(entity.ThreadEditInput)
 	err := json.Unmarshal(ctx.Request.Body(), threadInput)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusBadRequest)
@@ -165,6 +173,7 @@ func (threadInfo *ThreadInfo) EditThread(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -172,10 +181,28 @@ func (threadInfo *ThreadInfo) EditThread(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
-	thread.Title = threadInput.Title
-	thread.Message = threadInput.Message
 
 	//TODO: validate
+
+	if *threadInput == (entity.ThreadEditInput{}) { // No need for editing
+		responseBody, err := json.Marshal(thread)
+		if err != nil {
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
+		}
+
+		ctx.SetStatusCode(http.StatusOK)
+		ctx.SetContentType("application/json")
+		ctx.SetBody(responseBody)
+		return
+	}
+
+	if threadInput.Title != "" {
+		thread.Title = threadInput.Title
+	}
+	if threadInput.Message != "" {
+		thread.Message = threadInput.Message
+	}
 
 	err = threadInfo.threadApp.EditThread(thread)
 	if err != nil {
@@ -189,8 +216,8 @@ func (threadInfo *ThreadInfo) EditThread(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -248,6 +275,7 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -262,8 +290,8 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -304,6 +332,7 @@ func (threadInfo *ThreadInfo) VoteThread(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		case entity.IncorrectVoteAmountError:
@@ -321,7 +350,7 @@ func (threadInfo *ThreadInfo) VoteThread(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }

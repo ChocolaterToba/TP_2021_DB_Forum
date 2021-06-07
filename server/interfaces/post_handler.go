@@ -61,6 +61,7 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -88,6 +89,7 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 				}
 
 				ctx.SetStatusCode(http.StatusNotFound)
+				ctx.SetContentType("application/json")
 				ctx.SetBody(responseBody)
 				return
 			default:
@@ -105,8 +107,8 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusCreated)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -138,6 +140,7 @@ func (postInfo *PostInfo) GetPost(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -154,8 +157,8 @@ func (postInfo *PostInfo) GetPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -176,7 +179,7 @@ func (postInfo *PostInfo) EditPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	postInput := new(entity.Post)
+	postInput := new(entity.PostEditInput)
 	err = json.Unmarshal(ctx.Request.Body(), postInput)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusBadRequest)
@@ -194,12 +197,26 @@ func (postInfo *PostInfo) EditPost(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
 			ctx.SetStatusCode(http.StatusInternalServerError)
 			return
 		}
+	}
+
+	if postInput.Message == "" { // No need for editing
+		responseBody, err := json.Marshal(post)
+		if err != nil {
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
+		}
+
+		ctx.SetStatusCode(http.StatusOK)
+		ctx.SetContentType("application/json")
+		ctx.SetBody(responseBody)
+		return
 	}
 	post.Message = postInput.Message
 
@@ -217,7 +234,7 @@ func (postInfo *PostInfo) EditPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }

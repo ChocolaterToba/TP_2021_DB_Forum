@@ -4,7 +4,6 @@ import (
 	"dbforum/domain/entity"
 	"dbforum/domain/repository"
 	"sort"
-	"time"
 )
 
 type ThreadApp struct {
@@ -49,7 +48,6 @@ func (threadApp *ThreadApp) CreateThread(thread *entity.Thread) (*entity.Thread,
 	}
 
 	thread.ThreadID = threadID
-	thread.Created = time.Now()
 	return thread, nil
 }
 
@@ -106,6 +104,8 @@ func (threadApp *ThreadApp) GetPostsByThreadname(threadname string, mode string,
 	if err != nil {
 		return nil, err
 	}
+
+	//TODO: check for thread only if no posts are found
 
 	return threadApp.GetPostsByThreadID(thread.ThreadID, mode, asc)
 }

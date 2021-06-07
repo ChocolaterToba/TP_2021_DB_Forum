@@ -14,7 +14,7 @@ func NewForumApp(forumRepo repository.ForumRepositoryInterface) *ForumApp {
 }
 
 type ForumAppInterface interface {
-	CreateForum(forum *entity.Forum) (interface{}, error) // Returns int, nil on success, *entity.Forum, error on failure
+	CreateForum(forum *entity.ForumCreateInput) (*entity.Forum, error) // Returns created forum, nil on success, conflicting forum, error on failure
 	GetForumByID(forumID int) (*entity.Forum, error)
 	GetForumByForumname(forumname string) (*entity.Forum, error)
 	GetUsersByForumname(forumname string) ([]*entity.User, error)
@@ -23,8 +23,10 @@ type ForumAppInterface interface {
 
 // CreateForum adds new forum to database with passed fields
 // It returns Forum's assigned ID and nil on success, any number and error on failure
-func (forumApp *ForumApp) CreateForum(forum *entity.Forum) (interface{}, error) {
-	forumID, err := forumApp.forumRepo.CreateForum(forum)
+func (forumApp *ForumApp) CreateForum(forum *entity.ForumCreateInput) (*entity.Forum, error) {
+	createdForum := new(entity.Forum)
+	var err error
+	createdForum.ForumID, createdForum.Creator, err = forumApp.forumRepo.CreateForum(forum)
 	if err != nil {
 		switch err {
 		case entity.ForumConflictError:
@@ -43,7 +45,10 @@ func (forumApp *ForumApp) CreateForum(forum *entity.Forum) (interface{}, error) 
 		}
 	}
 
-	return forumID, nil
+	createdForum.Forumname = forum.Forumname
+	createdForum.Title = forum.Title
+
+	return createdForum, nil
 }
 
 // GetForumByID fetches forum with passed ID from database
@@ -67,5 +72,10 @@ func (forumApp *ForumApp) GetUsersByForumname(forumname string) ([]*entity.User,
 // GetThreadsByForumname finds all threads belonging to specified forum
 // It returns slice of them, nil on success and nil, error on failure
 func (forumApp *ForumApp) GetThreadsByForumname(forumname string) ([]*entity.Thread, error) {
+	_, err := forumApp.GetForumByForumname(forumname)
+	if err != nil {
+		return nil, err
+	}
+
 	return forumApp.forumRepo.GetThreadsByForumname(forumname)
 }

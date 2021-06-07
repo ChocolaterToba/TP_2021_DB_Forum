@@ -21,35 +21,48 @@ const createForumQuery string = "INSERT INTO Forums (title, forumname, creator)\
 	"values ($1, $2, $3)\n" +
 	"RETURNING forumID"
 
-func (forumRepo *ForumRepo) CreateForum(forum *entity.Forum) (int, error) {
+//Replacing creator's username to one passed when creating user
+const replaceForumCreatorQuery string = "UPDATE Forums\n" +
+	"SET creator=username\n" +
+	"FROM Users\n" +
+	"WHERE creator=$1 AND creator=username\n" +
+	"RETURNING username"
+
+func (forumRepo *ForumRepo) CreateForum(forum *entity.ForumCreateInput) (int, string, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())
 	if err != nil {
-		return -1, entity.TransactionBeginError
+		return -1, "", entity.TransactionBeginError
 	}
 	defer tx.Rollback(context.Background())
 
 	row := tx.QueryRow(context.Background(), createForumQuery,
 		forum.Title, forum.Forumname, forum.Creator)
-
 	newForumID := 0
 	err = row.Scan(&newForumID)
 	if err != nil {
 		switch {
 		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
-			return -1, entity.ForumConflictError
+			return -1, "", entity.ForumConflictError
 		case strings.Contains(err.Error(), "violates foreign key"):
-			return -1, entity.UserNotFoundError
+			return -1, "", entity.UserNotFoundError
 		default:
-			return -1, err
+			return -1, "", err
 		}
+	}
+
+	row = tx.QueryRow(context.Background(), replaceForumCreatorQuery, forum.Creator)
+	newCreator := ""
+	err = row.Scan(&newCreator)
+	if err != nil {
+		return -1, "", err
 	}
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		return -1, entity.TransactionCommitError
+		return -1, "", entity.TransactionCommitError
 	}
 
-	return newForumID, nil
+	return newForumID, newCreator, nil
 }
 
 const getForumByIDQuery string = "SELECT title, forumname, creator, posts_count, threads_count\n" +
@@ -80,8 +93,9 @@ func (forumRepo *ForumRepo) GetForumByID(forumID int) (*entity.Forum, error) {
 	return &forum, nil
 }
 
-const getForumByForumnameQuery string = "SELECT title, forumID, creator, posts_count, threads_count\n" +
-	"FROM Forums WHERE forumname=$1"
+const getForumByForumnameQuery string = "SELECT title, forumname, forumID, creator, posts_count, threads_count\n" +
+	"FROM Forums\n" +
+	"WHERE forumname=$1"
 
 func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())
@@ -90,10 +104,10 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 	}
 	defer tx.Rollback(context.Background())
 
-	forum := entity.Forum{Forumname: forumname}
+	forum := entity.Forum{}
 
 	row := tx.QueryRow(context.Background(), getForumByForumnameQuery, forumname)
-	err = row.Scan(&forum.Title, &forum.ForumID, &forum.Creator, &forum.PostsCount, &forum.ThreadsCount)
+	err = row.Scan(&forum.Title, &forum.Forumname, &forum.ForumID, &forum.Creator, &forum.PostsCount, &forum.ThreadsCount)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.ForumNotFoundError
@@ -148,7 +162,7 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.Use
 	return users, nil
 }
 
-const getThreadsByForumnameQuery string = "SELECT threadID, title, creator, forumname, message, created, rating\n" +
+const getThreadsByForumnameQuery string = "SELECT threadID, threadname, title, creator, forumname, message, created, rating\n" +
 	"FROM Threads\n" +
 	"WHERE forumname=$1"
 
@@ -171,7 +185,7 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string) ([]*entity.T
 	for rows.Next() {
 		thread := entity.Thread{}
 
-		err = rows.Scan(&thread.ThreadID, &thread.Title, &thread.Creator,
+		err = rows.Scan(&thread.ThreadID, &thread.Threadname, &thread.Title, &thread.Creator,
 			&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 		if err != nil {
 			return nil, err

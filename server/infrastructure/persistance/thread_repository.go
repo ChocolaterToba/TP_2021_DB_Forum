@@ -17,9 +17,12 @@ func NewThreadRepo(postgresDB *pgxpool.Pool) *ThreadRepo {
 	return &ThreadRepo{postgresDB}
 }
 
-const createThreadQuery string = "INSERT INTO Threads (threadname, creator, title, forumname, message)\n" +
+const createThreadQuery string = "INSERT INTO Threads (creator, title, forumname, message, created)\n" +
 	"values ($1, $2, $3, $4, $5)\n" +
-	"RETURNING ThreadID"
+	"RETURNING threadID"
+const createThreadWithThreadnameQuery string = "INSERT INTO Threads (threadname, creator, title, forumname, message, created)\n" +
+	"values ($1, $2, $3, $4, $5, $6)\n" +
+	"RETURNING threadID"
 const increaseForumThreadCountQuery string = "UPDATE Forums\n" +
 	"SET threads_count = threads_count + 1\n" +
 	"WHERE forumname=$1"
@@ -31,8 +34,15 @@ func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	row := tx.QueryRow(context.Background(), createThreadQuery,
-		thread.Threadname, thread.Creator, thread.Title, thread.Forumname, thread.Message)
+	var row pgx.Row
+	switch thread.Threadname {
+	case "":
+		row = tx.QueryRow(context.Background(), createThreadQuery,
+			thread.Creator, thread.Title, thread.Forumname, thread.Message, thread.Created)
+	default:
+		row = tx.QueryRow(context.Background(), createThreadWithThreadnameQuery,
+			thread.Threadname, thread.Creator, thread.Title, thread.Forumname, thread.Message, thread.Created)
+	}
 
 	newThreadID := 0
 	err = row.Scan(&newThreadID)

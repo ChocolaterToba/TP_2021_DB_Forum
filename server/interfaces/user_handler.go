@@ -48,6 +48,7 @@ func (userInfo *UserInfo) CreateUser(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusConflict)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -62,8 +63,8 @@ func (userInfo *UserInfo) CreateUser(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusCreated)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -90,6 +91,7 @@ func (userInfo *UserInfo) GetUser(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -104,32 +106,31 @@ func (userInfo *UserInfo) GetUser(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
 func (userInfo *UserInfo) EditUser(ctx *fasthttp.RequestCtx) {
 	usernameInterface := ctx.UserValue("username")
-	userInput := new(entity.User)
 
+	var username string
 	switch usernameInterface.(type) {
 	case string:
-		userInput.Username = usernameInterface.(string)
+		username = usernameInterface.(string)
 	default:
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
 	}
 
+	userInput := new(entity.UserEditInput)
 	err := json.Unmarshal(ctx.Request.Body(), userInput)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
 	}
 
-	//TODO: validate
-
-	err = userInfo.userApp.EditUser(userInput)
+	user, err := userInfo.userApp.GetUserByUsername(username)
 	if err != nil {
 		switch err {
 		case entity.UserNotFoundError:
@@ -140,6 +141,51 @@ func (userInfo *UserInfo) EditUser(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
+			ctx.SetBody(responseBody)
+			return
+		default:
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if *userInput == (entity.UserEditInput{}) { // No need for editing
+		responseBody, err := json.Marshal(user)
+		if err != nil {
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
+		}
+
+		ctx.SetStatusCode(http.StatusOK)
+		ctx.SetContentType("application/json")
+		ctx.SetBody(responseBody)
+		return
+	}
+
+	//TODO: validate
+	if userInput.FullName != "" {
+		user.FullName = userInput.FullName
+	}
+	if userInput.Description != "" {
+		user.Description = userInput.Description
+	}
+	if userInput.EMail != "" {
+		user.EMail = userInput.EMail
+	}
+
+	err = userInfo.userApp.EditUser(user)
+	if err != nil {
+		switch err {
+		case entity.UserNotFoundError:
+			responseBody, err := json.Marshal(entity.MessageOutput{"Can't find user"})
+			if err != nil {
+				ctx.SetStatusCode(http.StatusInternalServerError)
+				return
+			}
+
+			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 
@@ -150,7 +196,8 @@ func (userInfo *UserInfo) EditUser(ctx *fasthttp.RequestCtx) {
 				return
 			}
 
-			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetStatusCode(http.StatusConflict)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -159,13 +206,13 @@ func (userInfo *UserInfo) EditUser(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	responseBody, err := json.Marshal(userInput)
+	responseBody, err := json.Marshal(user)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }

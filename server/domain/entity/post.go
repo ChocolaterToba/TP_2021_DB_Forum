@@ -12,3 +12,7 @@ type Post struct {
 	ThreadID  int       `json:"thread"`
 	Created   time.Time `json:"created"`
 }
+
+type PostEditInput struct {
+	Message string `json:"message"`
+}

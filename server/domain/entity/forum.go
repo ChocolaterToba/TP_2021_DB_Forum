@@ -8,3 +8,9 @@ type Forum struct {
 	PostsCount   int    `json:"posts"`
 	ThreadsCount int    `json:"threads"`
 }
+
+type ForumCreateInput struct {
+	Title     string `json:"title"`
+	Creator   string `json:"user"`
+	Forumname string `json:"slug"`
+}

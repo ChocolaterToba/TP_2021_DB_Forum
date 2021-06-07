@@ -18,7 +18,7 @@ func NewForumInfo(forumApp application.ForumAppInterface) *ForumInfo {
 }
 
 func (forumInfo *ForumInfo) CreateForum(ctx *fasthttp.RequestCtx) {
-	forumInput := new(entity.Forum)
+	forumInput := new(entity.ForumCreateInput)
 	err := json.Unmarshal(ctx.Request.Body(), forumInput)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusBadRequest)
@@ -27,17 +27,18 @@ func (forumInfo *ForumInfo) CreateForum(ctx *fasthttp.RequestCtx) {
 
 	//TODO: validate
 
-	createForumInfo, err := forumInfo.forumApp.CreateForum(forumInput)
+	createdForum, err := forumInfo.forumApp.CreateForum(forumInput)
 	if err != nil {
 		switch err {
 		case entity.ForumConflictError:
-			responseBody, err := json.Marshal(createForumInfo.(*entity.Forum))
+			responseBody, err := json.Marshal(createdForum)
 			if err != nil {
 				ctx.SetStatusCode(http.StatusInternalServerError)
 				return
 			}
 
 			ctx.SetStatusCode(http.StatusConflict)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		case entity.UserNotFoundError:
@@ -48,6 +49,7 @@ func (forumInfo *ForumInfo) CreateForum(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		default:
@@ -56,14 +58,14 @@ func (forumInfo *ForumInfo) CreateForum(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	responseBody, err := json.Marshal(forumInput)
+	responseBody, err := json.Marshal(createdForum)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusCreated)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -90,6 +92,7 @@ func (forumInfo *ForumInfo) GetForum(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		}
@@ -104,8 +107,8 @@ func (forumInfo *ForumInfo) GetForum(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -132,6 +135,7 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		}
@@ -150,8 +154,8 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
 
@@ -178,6 +182,7 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 			}
 
 			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
 		}
@@ -196,7 +201,7 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(http.StatusOK)
+	ctx.SetContentType("application/json")
 	ctx.SetBody(responseBody)
 }
