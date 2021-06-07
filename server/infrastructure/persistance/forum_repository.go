@@ -3,6 +3,7 @@ package persistance
 import (
 	"context"
 	"dbforum/domain/entity"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v4"
@@ -34,10 +35,11 @@ func (forumRepo *ForumRepo) CreateForum(forum *entity.Forum) (int, error) {
 	newForumID := 0
 	err = row.Scan(&newForumID)
 	if err != nil {
+		fmt.Println(err)
 		switch {
 		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
 			return -1, entity.ForumConflictError
-		case strings.Contains(err.Error(), "violates foreighn key"):
+		case strings.Contains(err.Error(), "violates foreign key"):
 			return -1, entity.UserNotFoundError
 		default:
 			return -1, err
@@ -64,7 +66,7 @@ func (forumRepo *ForumRepo) GetForumByID(forumID int) (*entity.Forum, error) {
 
 	forum := entity.Forum{ForumID: forumID}
 
-	row := tx.QueryRow(context.Background(), getUserByIDQuery, forumID)
+	row := tx.QueryRow(context.Background(), getForumByIDQuery, forumID)
 	err = row.Scan(&forum.Title, &forum.Forumname, &forum.Creator, &forum.PostsCount, &forum.ThreadsCount)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -92,7 +94,7 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 
 	forum := entity.Forum{Forumname: forumname}
 
-	row := tx.QueryRow(context.Background(), getUserByIDQuery, forumname)
+	row := tx.QueryRow(context.Background(), getForumByForumnameQuery, forumname)
 	err = row.Scan(&forum.Title, &forum.ForumID, &forum.Creator, &forum.PostsCount, &forum.ThreadsCount)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -111,7 +113,7 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 const getUsersByForumnameQuery string = "SELECT user.userID, user.username, user.email, user.fullName, user.description\n" +
 	"FROM Users as user\n" +
 	"INNER JOIN POSTS as post\n" +
-	"ON post.authorUsername = user.username\n" +
+	"ON post.creator = user.username\n" +
 	"WHERE post.forumname=$1"
 
 func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.User, error) {
@@ -147,7 +149,7 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.Use
 	return users, nil
 }
 
-const getThreadsByForumnameQuery string = "SELECT threadID, title, authorUsername, forumName, message, created, rating\n" +
+const getThreadsByForumnameQuery string = "SELECT threadID, title, creator, forumname, message, created, rating\n" +
 	"FROM Threads\n" +
 	"WHERE forumname=$1"
 
@@ -170,7 +172,7 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string) ([]*entity.T
 	for rows.Next() {
 		thread := entity.Thread{}
 
-		err = rows.Scan(&thread.ThreadID, &thread.Title, &thread.AuthorUsername,
+		err = rows.Scan(&thread.ThreadID, &thread.Title, &thread.Creator,
 			&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 		if err != nil {
 			return nil, err

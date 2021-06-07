@@ -18,3 +18,5 @@ const ForumConflictError customError = "Could not add forum due to fields confli
 const ForumConflictNotFoundError customError = "Could not find conflicted forum"
 
 const ThreadNotFoundError customError = "Could not find thread"
+
+const PostNotFoundError customError = "Could not find post"

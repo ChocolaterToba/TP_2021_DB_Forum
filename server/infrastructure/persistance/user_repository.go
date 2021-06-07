@@ -132,7 +132,7 @@ func (userRepo *UserRepo) GetUserByEmail(email string) (*entity.User, error) {
 	return &user, nil
 }
 
-const editUserQuery string = "Update Users\n" +
+const editUserQuery string = "UPDATE Users\n" +
 	"SET email=$2, fullName=$3, description=$4\n" +
 	"WHERE username=$1"
 
