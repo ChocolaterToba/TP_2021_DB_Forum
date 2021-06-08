@@ -23,14 +23,21 @@ const createThreadQuery string = "INSERT INTO Threads (creator, title, forumname
 const createThreadWithThreadnameQuery string = "INSERT INTO Threads (threadname, creator, title, forumname, message, created)\n" +
 	"values ($1, $2, $3, $4, $5, $6)\n" +
 	"RETURNING threadID"
+
+//Replacing thread's forumname to one passed when creating forumname
+const replaceThreadForumnameQuery string = "UPDATE Threads as thread\n" +
+	"SET forumname=forum.forumname\n" +
+	"FROM Forums as forum\n" +
+	"WHERE thread.threadID=$1 AND thread.forumname=forum.forumname\n" +
+	"RETURNING forum.forumname"
 const increaseForumThreadCountQuery string = "UPDATE Forums\n" +
 	"SET threads_count = threads_count + 1\n" +
 	"WHERE forumname=$1"
 
-func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, error) {
+func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, string, error) {
 	tx, err := threadRepo.postgresDB.Begin(context.Background())
 	if err != nil {
-		return -1, entity.TransactionBeginError
+		return -1, "", entity.TransactionBeginError
 	}
 	defer tx.Rollback(context.Background())
 
@@ -49,25 +56,32 @@ func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, error) {
 	if err != nil {
 		switch {
 		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
-			return -1, entity.ThreadConflictError
+			return -1, "", entity.ThreadConflictError
 		case strings.Contains(err.Error(), "violates foreign key"):
-			return -1, entity.ForumNotFoundError // TODO: differentiate between user not found and forum not found
+			return -1, "", entity.ForumNotFoundError // TODO: differentiate between user not found and forum not found
 		default:
-			return -1, err
+			return -1, "", err
 		}
+	}
+
+	row = tx.QueryRow(context.Background(), replaceThreadForumnameQuery, newThreadID)
+	newForumname := ""
+	err = row.Scan(&newForumname)
+	if err != nil {
+		return -1, "", err
 	}
 
 	_, err = tx.Exec(context.Background(), increaseForumThreadCountQuery, thread.Forumname)
 	if err != nil {
-		return -1, err
+		return -1, "", err
 	}
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		return -1, entity.TransactionCommitError
+		return -1, "", entity.TransactionCommitError
 	}
 
-	return newThreadID, nil
+	return newThreadID, newForumname, nil
 }
 
 const getThreadByIDQuery string = "SELECT threadname, title, creator, forumname, message, created, rating\n" +
@@ -99,8 +113,8 @@ func (threadRepo *ThreadRepo) GetThreadByID(threadID int) (*entity.Thread, error
 	return &thread, nil
 }
 
-const getThreadByThreadnameQuery string = "SELECT threadID, title, creator, forumname, message, created, rating\n" +
-	"FROM Threads WHERE threadID=$1"
+const getThreadByThreadnameQuery string = "SELECT threadID, threadname, title, creator, forumname, message, created, rating\n" +
+	"FROM Threads WHERE threadname=$1"
 
 func (threadRepo *ThreadRepo) GetThreadByThreadname(threadname string) (*entity.Thread, error) {
 	tx, err := threadRepo.postgresDB.Begin(context.Background())
@@ -109,10 +123,10 @@ func (threadRepo *ThreadRepo) GetThreadByThreadname(threadname string) (*entity.
 	}
 	defer tx.Rollback(context.Background())
 
-	thread := entity.Thread{Threadname: threadname}
+	thread := entity.Thread{}
 
 	row := tx.QueryRow(context.Background(), getThreadByThreadnameQuery, threadname)
-	err = row.Scan(&thread.ThreadID, &thread.Title, &thread.Creator,
+	err = row.Scan(&thread.ThreadID, &thread.Threadname, &thread.Title, &thread.Creator,
 		&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -158,11 +172,27 @@ func (threadRepo *ThreadRepo) EditThread(thread *entity.Thread) error {
 	return nil
 }
 
-const getPostsByThreadIDQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+const getPostsByThreadIDFlatQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
 	"FROM Posts\n" +
-	"WHERE threadID=$1"
+	"WHERE threadID=$1 AND " +
+	"postID>$2\n" +
+	"ORDER BY postID, created\n" +
+	"LIMIT $3"
 
-func (threadRepo *ThreadRepo) GetPostsByThreadID(threadID int) ([]*entity.Post, error) {
+const getPostsByThreadIDFlatDescQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1 AND " +
+	"postID<$2\n" +
+	"ORDER BY postID DESC, created DESC\n" +
+	"LIMIT $3"
+
+const getPostsByThreadIDFlatDescNoStartQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1\n" +
+	"ORDER BY postID DESC, created DESC\n" +
+	"LIMIT $2"
+
+func (threadRepo *ThreadRepo) GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
 	tx, err := threadRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return nil, entity.TransactionBeginError
@@ -170,7 +200,19 @@ func (threadRepo *ThreadRepo) GetPostsByThreadID(threadID int) ([]*entity.Post, 
 	defer tx.Rollback(context.Background())
 
 	posts := make([]*entity.Post, 0)
-	rows, err := tx.Query(context.Background(), getPostsByThreadIDQuery, threadID)
+	var rows pgx.Rows
+	switch desc {
+	case true:
+		switch startAfter {
+		case 0:
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDFlatDescNoStartQuery, threadID, limit)
+		default:
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDFlatDescQuery, threadID, startAfter, limit)
+		}
+	case false:
+		rows, err = tx.Query(context.Background(), getPostsByThreadIDFlatQuery, threadID, startAfter, limit)
+	}
+
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError

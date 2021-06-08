@@ -30,23 +30,18 @@ type PostAppInterface interface {
 func (postApp *PostApp) CreatePost(post *entity.Post) (*entity.Post, error) {
 	if post.ParentID != 0 {
 		//Checking if parent post exists in same thread
-		posts, err := postApp.threadApp.GetPostsByThreadID(post.ThreadID, "nosort", true)
+		parentPost, err := postApp.GetPostByID(post.ParentID)
 		if err != nil {
-			return nil, err
+			return nil, entity.ParentNotFoundError
 		}
-		parentFound := false
-		for _, parent := range posts.([]*entity.Post) {
-			if parent.PostID == post.ParentID {
-				parentFound = true
-				break
-			}
-		}
-		if !parentFound {
+		if parentPost.ThreadID != post.ThreadID {
 			return nil, entity.ParentNotFoundError
 		}
 	}
 
-	post.Created = time.Now()
+	if post.Created == (time.Time{}) {
+		post.Created = time.Now().Truncate(time.Millisecond)
+	}
 
 	var err error
 	post.PostID, err = postApp.postRepo.CreatePost(post)

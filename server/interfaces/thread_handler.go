@@ -40,7 +40,7 @@ func (threadInfo *ThreadInfo) CreateThread(ctx *fasthttp.RequestCtx) {
 	//TODO: validate
 
 	if threadInput.Created == (time.Time{}) {
-		threadInput.Created = time.Now()
+		threadInput.Created = time.Now().Truncate(time.Millisecond)
 	}
 
 	newThread, err := threadInfo.threadApp.CreateThread(threadInput)
@@ -222,32 +222,14 @@ func (threadInfo *ThreadInfo) EditThread(ctx *fasthttp.RequestCtx) {
 }
 
 func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
-	sortingMode := string(ctx.QueryArgs().Peek("sort"))
-	switch sortingMode {
-	case "flat", "tree", "parent_tree":
-		// Intentional no-op
-	case "":
-		sortingMode = "flat"
-	default:
-		ctx.SetStatusCode(http.StatusBadRequest)
-		return
-	}
-
-	sortingAscString := string(ctx.QueryArgs().Peek("desc"))
-	sortingAsc := true
-	switch sortingAscString {
-	case "true":
-		sortingAsc = false
-	case "", "false":
-		// Intentional no-op
-	default:
+	threadInput, err := entity.QueryToThreadGetPostsInput(ctx.QueryArgs())
+	if err != nil {
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
 	}
 
 	threadnameInterface := ctx.UserValue("threadnameOrID")
 	var threadname string
-
 	switch threadnameInterface.(type) {
 	case string:
 		threadname = threadnameInterface.(string)
@@ -260,9 +242,11 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 	var posts interface{}
 	switch err {
 	case nil:
-		posts, err = threadInfo.threadApp.GetPostsByThreadID(threadID, sortingMode, sortingAsc)
+		//TODO: non-flat sorts
+		posts, err = threadInfo.threadApp.GetPostsByThreadIDFlat(threadID, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
 	default:
-		posts, err = threadInfo.threadApp.GetPostsByThreadname(threadname, sortingMode, sortingAsc)
+		//TODO: non-flat sorts
+		posts, err = threadInfo.threadApp.GetPostsByThreadnameFlat(threadname, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
 	}
 
 	if err != nil {

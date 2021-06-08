@@ -26,7 +26,7 @@ const createForumQuery string = "INSERT INTO Forums (title, forumname, creator)\
 const replaceForumCreatorQuery string = "UPDATE Forums\n" +
 	"SET creator=username\n" +
 	"FROM Users\n" +
-	"WHERE creator=$1 AND creator=username\n" +
+	"WHERE forumID=$1 AND creator=username\n" +
 	"RETURNING username"
 
 func (forumRepo *ForumRepo) CreateForum(forum *entity.ForumCreateInput) (int, string, error) {
@@ -51,7 +51,7 @@ func (forumRepo *ForumRepo) CreateForum(forum *entity.ForumCreateInput) (int, st
 		}
 	}
 
-	row = tx.QueryRow(context.Background(), replaceForumCreatorQuery, forum.Creator)
+	row = tx.QueryRow(context.Background(), replaceForumCreatorQuery, newForumID)
 	newCreator := ""
 	err = row.Scan(&newCreator)
 	if err != nil {
@@ -239,7 +239,7 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string, limit int, s
 	}
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, entity.UserNotFoundError
+			return nil, entity.ThreadNotFoundError
 		}
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package application
 import (
 	"dbforum/domain/entity"
 	"dbforum/domain/repository"
-	"sort"
 )
 
 type ThreadApp struct {
@@ -19,8 +18,8 @@ type ThreadAppInterface interface {
 	GetThreadByID(threadID int) (*entity.Thread, error)
 	GetThreadByThreadname(threadname string) (*entity.Thread, error)
 	EditThread(thread *entity.Thread) error
-	GetPostsByThreadID(threadID int, mode string, asc bool) (interface{}, error)
-	GetPostsByThreadname(threadname string, mode string, asc bool) (interface{}, error) //[]*entity.Post if mode is flat, [][]*entity.Post if tree/parent_tree
+	GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error)
+	GetPostsByThreadnameFlat(threadname string, limit int, startAfter int, desc bool) ([]*entity.Post, error) //[]*entity.Post if mode is flat, [][]*entity.Post if tree/parent_tree
 	VoteThreadByID(threadID int, username string, voteAmount int) (*entity.Thread, error)
 	VoteThreadByThreadname(threadname string, username string, voteAmount int) (*entity.Thread, error)
 }
@@ -28,14 +27,14 @@ type ThreadAppInterface interface {
 // CreateThread adds new thread to database with passed fields
 // It returns created thread, nil on success, conflicting thread, error on failure
 func (threadApp *ThreadApp) CreateThread(thread *entity.Thread) (*entity.Thread, error) {
-	threadID, err := threadApp.threadRepo.CreateThread(thread)
+	threadID, forumname, err := threadApp.threadRepo.CreateThread(thread)
 	if err != nil {
 		switch err {
 		case entity.ThreadConflictError:
 			threadnameConflict, err := threadApp.threadRepo.GetThreadByThreadname(thread.Threadname)
 			switch err {
 			case nil:
-				return threadnameConflict, entity.ForumConflictError
+				return threadnameConflict, entity.ThreadConflictError
 			case entity.ThreadNotFoundError:
 				return nil, entity.ThreadConflictNotFoundError
 			default:
@@ -48,6 +47,7 @@ func (threadApp *ThreadApp) CreateThread(thread *entity.Thread) (*entity.Thread,
 	}
 
 	thread.ThreadID = threadID
+	thread.Forumname = forumname
 	return thread, nil
 }
 
@@ -69,45 +69,42 @@ func (threadApp *ThreadApp) GetThreadByThreadname(threadname string) (*entity.Th
 	return threadApp.threadRepo.GetThreadByThreadname(threadname)
 }
 
-// GetPostsByThreadID fetches all posts in specified thread
+// GetPostsByThreadID fetches <limit> posts in specified thread, sorted by creation date, starting after postID = startAfter
 // It returns slice of these posts, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetPostsByThreadID(threadID int, mode string, asc bool) (interface{}, error) {
-	posts, err := threadApp.threadRepo.GetPostsByThreadID(threadID)
+func (threadApp *ThreadApp) GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
+	thread, err := threadApp.GetThreadByID(threadID)
 	if err != nil {
 		return nil, err
 	}
 
-	if mode == "nosort" {
-		return posts, nil
-	}
-	switch asc { // Sort posts by time of creation
-	case true:
-		sort.Slice(posts, func(i, j int) bool { return posts[i].Created.Before(posts[j].Created) })
-	case false:
-		sort.Slice(posts, func(i, j int) bool { return posts[i].Created.After(posts[j].Created) }) // Sort by time of creation
+	posts, err := threadApp.threadRepo.GetPostsByThreadIDFlat(threadID, limit, startAfter, desc)
+	if err != nil {
+		return nil, err
 	}
 
-	switch mode {
-	case "tree":
-		//TODO
-	case "parent_tree":
-	//TODO
-	default: //default is no-op
+	for i := range posts {
+		posts[i].Forumname = thread.Forumname
 	}
 	return posts, nil
 }
 
 // GetPostsByThreadname fetches all posts in specified thread
 // It returns slice of these posts, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetPostsByThreadname(threadname string, mode string, asc bool) (interface{}, error) {
+func (threadApp *ThreadApp) GetPostsByThreadnameFlat(threadname string, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
 	thread, err := threadApp.GetThreadByThreadname(threadname)
 	if err != nil {
 		return nil, err
 	}
 
-	//TODO: check for thread only if no posts are found
+	posts, err := threadApp.threadRepo.GetPostsByThreadIDFlat(thread.ThreadID, limit, startAfter, desc)
+	if err != nil {
+		return nil, err
+	}
 
-	return threadApp.GetPostsByThreadID(thread.ThreadID, mode, asc)
+	for i := range posts {
+		posts[i].Forumname = thread.Forumname
+	}
+	return posts, nil
 }
 
 // VoteThreadByID changes thread's rating, adding vote from username

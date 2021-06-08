@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -70,9 +71,13 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
+	creationDate := time.Now().Truncate(time.Millisecond) // Creation time is same for all posts where it's not specified
 	for i := range posts {
 		posts[i].ThreadID = thread.ThreadID
 		posts[i].Forumname = thread.Forumname
+		if posts[i].Created == (time.Time{}) {
+			posts[i].Created = creationDate
+		}
 	}
 
 	//TODO: validate
