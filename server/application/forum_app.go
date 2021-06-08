@@ -3,6 +3,7 @@ package application
 import (
 	"dbforum/domain/entity"
 	"dbforum/domain/repository"
+	"time"
 )
 
 type ForumApp struct {
@@ -17,8 +18,8 @@ type ForumAppInterface interface {
 	CreateForum(forum *entity.ForumCreateInput) (*entity.Forum, error) // Returns created forum, nil on success, conflicting forum, error on failure
 	GetForumByID(forumID int) (*entity.Forum, error)
 	GetForumByForumname(forumname string) (*entity.Forum, error)
-	GetUsersByForumname(forumname string) ([]*entity.User, error)
-	GetThreadsByForumname(forumname string) ([]*entity.Thread, error)
+	GetUsersByForumname(forumname string, limit int, startAfter string, desc bool) ([]*entity.User, error)
+	GetThreadsByForumname(forumname string, limit int, startFrom time.Time, desc bool) ([]*entity.Thread, error)
 }
 
 // CreateForum adds new forum to database with passed fields
@@ -63,19 +64,25 @@ func (forumApp *ForumApp) GetForumByForumname(forumname string) (*entity.Forum, 
 	return forumApp.forumRepo.GetForumByForumname(forumname)
 }
 
-// GetUsersByForumname finds all users belonging to specified forum
+// GetUsersByForumname finds all users belonging to specified forum, ordered, starting after user with username = startAfter
 // It returns slice of them, nil on success and nil, error on failure
-func (forumApp *ForumApp) GetUsersByForumname(forumname string) ([]*entity.User, error) {
-	return forumApp.forumRepo.GetUsersByForumname(forumname)
+func (forumApp *ForumApp) GetUsersByForumname(forumname string, limit int, startAfter string, desc bool) ([]*entity.User, error) {
+	if limit == 0 {
+		limit = 100 // Default limit
+	}
+	return forumApp.forumRepo.GetUsersByForumname(forumname, limit, startAfter, desc)
 }
 
-// GetThreadsByForumname finds all threads belonging to specified forum
+// GetThreadsByForumname finds all threads belonging to specified forum, ordered, starting with thread with creation date = startFrom
 // It returns slice of them, nil on success and nil, error on failure
-func (forumApp *ForumApp) GetThreadsByForumname(forumname string) ([]*entity.Thread, error) {
+func (forumApp *ForumApp) GetThreadsByForumname(forumname string, limit int, startFrom time.Time, desc bool) ([]*entity.Thread, error) {
 	_, err := forumApp.GetForumByForumname(forumname)
 	if err != nil {
 		return nil, err
 	}
 
-	return forumApp.forumRepo.GetThreadsByForumname(forumname)
+	if limit == 0 {
+		limit = 100 // Default limit
+	}
+	return forumApp.forumRepo.GetThreadsByForumname(forumname, limit, startFrom, desc)
 }

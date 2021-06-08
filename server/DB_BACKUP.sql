@@ -114,7 +114,7 @@ CREATE TABLE public.threads (
     threadid integer NOT NULL,
     creator character varying(50) NOT NULL COLLATE public.case_insensitive,
     title character varying(100) NOT NULL,
-    forumname character varying(50) DEFAULT NULL::character varying,
+    forumname character varying(50) DEFAULT NULL::character varying COLLATE public.case_insensitive,
     message text,
     created timestamp(3) with time zone DEFAULT now() NOT NULL,
     rating integer DEFAULT 0 NOT NULL,
@@ -252,81 +252,6 @@ ALTER TABLE ONLY public.users ALTER COLUMN userid SET DEFAULT nextval('public.us
 --
 
 ALTER TABLE ONLY public.votes ALTER COLUMN voteid SET DEFAULT nextval('public.votes_voteid_seq'::regclass);
-
-
---
--- Data for Name: forums; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.forums (forumid, title, creator, forumname, posts_count, threads_count) FROM stdin;
-\.
-
-
---
--- Data for Name: posts; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.posts (postid, parentid, creator, message, isedited, threadid, created) FROM stdin;
-\.
-
-
---
--- Data for Name: threads; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.threads (threadid, creator, title, forumname, message, created, rating, threadname) FROM stdin;
-\.
-
-
---
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.users (userid, username, email, fullname, description) FROM stdin;
-\.
-
-
---
--- Data for Name: votes; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.votes (voteid, username, threadname, upvote) FROM stdin;
-\.
-
-
---
--- Name: forums_forumid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.forums_forumid_seq', 734, true);
-
-
---
--- Name: posts_postid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.posts_postid_seq', 21, true);
-
-
---
--- Name: threads_threadid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.threads_threadid_seq', 549, true);
-
-
---
--- Name: users_userid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.users_userid_seq', 4479, true);
-
-
---
--- Name: votes_voteid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.votes_voteid_seq', 17, true);
 
 
 --

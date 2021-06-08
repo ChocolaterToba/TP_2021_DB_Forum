@@ -4,6 +4,7 @@ import (
 	"context"
 	"dbforum/domain/entity"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -127,9 +128,31 @@ const getUsersByForumnameQuery string = "SELECT users.userID, users.username, us
 	"INNER JOIN Posts as posts\n" +
 	"ON posts.creator = users.username\n" +
 	"INNER JOIN Threads as threads\n" +
-	"ON threads.threadID = posts.threadID AND threads.forumname=$1"
+	"ON threads.threadID = posts.threadID AND threads.forumname=$1\n" +
+	"WHERE users.username > $2\n" +
+	"ORDER BY users.username\n" +
+	"LIMIT $"
 
-func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.User, error) {
+const getUsersByForumnameDescQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
+	"FROM Users as users\n" +
+	"INNER JOIN Posts as posts\n" +
+	"ON posts.creator = users.username\n" +
+	"INNER JOIN Threads as threads\n" +
+	"ON threads.threadID = posts.threadID AND threads.forumname=$1\n" +
+	"WHERE users.username < $2\n" +
+	"ORDER BY users.username DESC\n" +
+	"LIMIT $3"
+
+const getUsersByForumnameDescNostartQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
+	"FROM Users as users\n" +
+	"INNER JOIN Posts as posts\n" +
+	"ON posts.creator = users.username\n" +
+	"INNER JOIN Threads as threads\n" +
+	"ON threads.threadID = posts.threadID AND threads.forumname=$1\n" +
+	"ORDER BY users.username DESC\n" +
+	"LIMIT $2"
+
+func (forumRepo *ForumRepo) GetUsersByForumname(forumname string, limit int, startAfter string, desc bool) ([]*entity.User, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return nil, entity.TransactionBeginError
@@ -137,7 +160,19 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.Use
 	defer tx.Rollback(context.Background())
 
 	users := make([]*entity.User, 0)
-	rows, err := tx.Query(context.Background(), getUsersByForumnameQuery, forumname)
+
+	var rows pgx.Rows
+	switch desc {
+	case true:
+		switch startAfter {
+		case "":
+			rows, err = tx.Query(context.Background(), getUsersByForumnameDescNostartQuery, forumname, limit)
+		default:
+			rows, err = tx.Query(context.Background(), getUsersByForumnameDescQuery, forumname, startAfter, limit)
+		}
+	case false:
+		rows, err = tx.Query(context.Background(), getUsersByForumnameQuery, forumname, startAfter, limit)
+	}
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.UserNotFoundError
@@ -164,9 +199,25 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string) ([]*entity.Use
 
 const getThreadsByForumnameQuery string = "SELECT threadID, threadname, title, creator, forumname, message, created, rating\n" +
 	"FROM Threads\n" +
-	"WHERE forumname=$1"
+	"WHERE forumname=$1 AND " +
+	"created>=$2\n" +
+	"ORDER BY created\n" +
+	"LIMIT $3"
 
-func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string) ([]*entity.Thread, error) {
+const getThreadsByForumnameDescQuery string = "SELECT threadID, threadname, title, creator, forumname, message, created, rating\n" +
+	"FROM Threads\n" +
+	"WHERE forumname=$1 AND " +
+	"created<=$2\n" +
+	"ORDER BY created DESC\n" +
+	"LIMIT $3"
+
+const getThreadsByForumnameDescNostartQuery string = "SELECT threadID, threadname, title, creator, forumname, message, created, rating\n" +
+	"FROM Threads\n" +
+	"WHERE forumname=$1\n" +
+	"ORDER BY created DESC\n" +
+	"LIMIT $2"
+
+func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string, limit int, startFrom time.Time, desc bool) ([]*entity.Thread, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return nil, entity.TransactionBeginError
@@ -174,10 +225,21 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string) ([]*entity.T
 	defer tx.Rollback(context.Background())
 
 	threads := make([]*entity.Thread, 0)
-	rows, err := tx.Query(context.Background(), getThreadsByForumnameQuery, forumname)
+	var rows pgx.Rows
+	switch desc {
+	case true:
+		switch startFrom {
+		case time.Time{}:
+			rows, err = tx.Query(context.Background(), getThreadsByForumnameDescNostartQuery, forumname, limit)
+		default:
+			rows, err = tx.Query(context.Background(), getThreadsByForumnameDescQuery, forumname, startFrom, limit)
+		}
+	case false:
+		rows, err = tx.Query(context.Background(), getThreadsByForumnameQuery, forumname, startFrom, limit)
+	}
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, entity.ThreadNotFoundError
+			return nil, entity.UserNotFoundError
 		}
 		return nil, err
 	}

@@ -114,17 +114,19 @@ func (forumInfo *ForumInfo) GetForum(ctx *fasthttp.RequestCtx) {
 
 func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 	forumnameInterface := ctx.UserValue("forumname")
-	forumInput := new(entity.Forum)
 
+	var forumname string
 	switch forumnameInterface.(type) {
 	case string:
-		forumInput.Forumname = forumnameInterface.(string)
+		forumname = forumnameInterface.(string)
 	default:
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
 	}
 
-	users, err := forumInfo.forumApp.GetUsersByForumname(forumInput.Forumname)
+	forumInput, err := entity.QueryToForumGetUsersInput(ctx.QueryArgs())
+
+	users, err := forumInfo.forumApp.GetUsersByForumname(forumname, forumInput.Limit, forumInput.StartAfter, forumInput.Desc)
 	if err != nil {
 		switch err {
 		case entity.ForumNotFoundError:
@@ -161,17 +163,19 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 
 func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 	forumnameInterface := ctx.UserValue("forumname")
-	forumInput := new(entity.Forum)
 
+	var forumname string
 	switch forumnameInterface.(type) {
 	case string:
-		forumInput.Forumname = forumnameInterface.(string)
+		forumname = forumnameInterface.(string)
 	default:
 		ctx.SetStatusCode(http.StatusBadRequest)
 		return
 	}
 
-	threads, err := forumInfo.forumApp.GetThreadsByForumname(forumInput.Forumname)
+	forumInput, err := entity.QueryToForumGetThreadsInput(ctx.QueryArgs())
+
+	threads, err := forumInfo.forumApp.GetThreadsByForumname(forumname, forumInput.Limit, forumInput.StartFrom, forumInput.Desc)
 	if err != nil {
 		switch err {
 		case entity.ForumNotFoundError:

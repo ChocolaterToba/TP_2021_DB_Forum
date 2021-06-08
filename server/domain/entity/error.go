@@ -9,6 +9,8 @@ func (err customError) Error() string { // customError implements error interfac
 const TransactionBeginError customError = "Could not start transaction"
 const TransactionCommitError customError = "Could not commit transaction"
 
+const QueryParseError customError = "Could not parse query parameters"
+
 const UserNotFoundError customError = "Could not find user"
 const UserConflictError customError = "Could not add user due to fields conflicting"
 const UserConflictNotFoundError customError = "Could not find conflicing users"
