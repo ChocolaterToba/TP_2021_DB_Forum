@@ -35,16 +35,19 @@ func runServer(addr string) {
 	forumRepo := persistance.NewForumRepo(postgresConn)
 	postRepo := persistance.NewPostRepo(postgresConn)
 	threadRepo := persistance.NewThreadRepo(postgresConn)
+	serviceRepo := persistance.NewServiceRepo(postgresConn)
 
 	userApp := application.NewUserApp(userRepo)
 	forumApp := application.NewForumApp(forumRepo)
 	postApp := application.NewPostApp(postRepo, userRepo, threadRepo, forumRepo)
 	threadApp := application.NewThreadApp(threadRepo, postApp)
+	serviceApp := application.NewServiceApp(serviceRepo)
 
 	userInfo := interfaces.NewUserInfo(userApp)
 	forumInfo := interfaces.NewForumInfo(forumApp)
 	postInfo := interfaces.NewPostInfo(postApp, threadApp)
 	threadInfo := interfaces.NewThreadInfo(threadApp)
+	serviceInfo := interfaces.NewServiceInfo(serviceApp)
 
 	router := router.New()
 
@@ -67,6 +70,9 @@ func runServer(addr string) {
 	router.POST(prefix+"/thread/{threadnameOrID}/create", postInfo.CreatePost)
 	router.GET(prefix+"/post/{postID}/details", postInfo.GetPost)
 	router.POST(prefix+"/post/{postID}/details", postInfo.EditPost)
+
+	router.GET(prefix+"/service/status", serviceInfo.GetForumStats)
+	router.POST(prefix+"/service/clear", serviceInfo.ClearForum)
 
 	fmt.Printf("Starting server at localhost%s\n", addr)
 	fasthttp.ListenAndServe(addr, router.Handler)

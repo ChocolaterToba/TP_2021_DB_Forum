@@ -96,9 +96,9 @@ func (threadRepo *ThreadRepo) GetThreadByID(threadID int) (*entity.Thread, error
 	}
 	defer tx.Rollback(context.Background())
 
-	thread := entity.Thread{ThreadID: threadID}
-
 	row := tx.QueryRow(context.Background(), getThreadByIDQuery, threadID)
+
+	thread := entity.Thread{ThreadID: threadID}
 	err = row.Scan(&thread.Threadname, &thread.Title, &thread.Creator,
 		&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 	if err != nil {
@@ -125,9 +125,9 @@ func (threadRepo *ThreadRepo) GetThreadByThreadname(threadname string) (*entity.
 	}
 	defer tx.Rollback(context.Background())
 
-	thread := entity.Thread{}
-
 	row := tx.QueryRow(context.Background(), getThreadByThreadnameQuery, threadname)
+
+	thread := entity.Thread{}
 	err = row.Scan(&thread.ThreadID, &thread.Threadname, &thread.Title, &thread.Creator,
 		&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 	if err != nil {
@@ -201,7 +201,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDFlat(threadID int, limit int, st
 	}
 	defer tx.Rollback(context.Background())
 
-	posts := make([]*entity.Post, 0)
 	var rows pgx.Rows
 	switch desc {
 	case true:
@@ -214,7 +213,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDFlat(threadID int, limit int, st
 	case false:
 		rows, err = tx.Query(context.Background(), getPostsByThreadIDFlatQuery, threadID, startAfter, limit)
 	}
-
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError
@@ -222,6 +220,7 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDFlat(threadID int, limit int, st
 		return nil, err
 	}
 
+	posts := make([]*entity.Post, 0)
 	for rows.Next() {
 		post := entity.Post{ThreadID: threadID}
 
@@ -272,7 +271,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTree(threadID int, limit int, st
 	}
 	defer tx.Rollback(context.Background())
 
-	posts := make([]*entity.Post, 0)
 	var rows pgx.Rows
 	switch desc {
 	case true:
@@ -285,7 +283,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTree(threadID int, limit int, st
 	case false:
 		rows, err = tx.Query(context.Background(), getPostsByThreadIDTreeQuery, threadID, startAfter, limit)
 	}
-
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError
@@ -293,6 +290,7 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTree(threadID int, limit int, st
 		return nil, err
 	}
 
+	posts := make([]*entity.Post, 0)
 	for rows.Next() {
 		post := entity.Post{ThreadID: threadID}
 
@@ -346,7 +344,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, sta
 	}
 	defer tx.Rollback(context.Background())
 
-	posts := make([]*entity.Post, 0)
 	var rows pgx.Rows
 	switch desc {
 	case true:
@@ -359,7 +356,6 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, sta
 	case false:
 		rows, err = tx.Query(context.Background(), getPostsByThreadIDTopQuery, threadID, startAfter, limit)
 	}
-
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError
@@ -367,6 +363,7 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, sta
 		return nil, err
 	}
 
+	posts := make([]*entity.Post, 0)
 	for rows.Next() {
 		post := entity.Post{ThreadID: threadID}
 

@@ -38,6 +38,7 @@ func (forumRepo *ForumRepo) CreateForum(forum *entity.ForumCreateInput) (int, st
 
 	row := tx.QueryRow(context.Background(), createForumQuery,
 		forum.Title, forum.Forumname, forum.Creator)
+
 	newForumID := 0
 	err = row.Scan(&newForumID)
 	if err != nil {
@@ -76,9 +77,9 @@ func (forumRepo *ForumRepo) GetForumByID(forumID int) (*entity.Forum, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	forum := entity.Forum{ForumID: forumID}
-
 	row := tx.QueryRow(context.Background(), getForumByIDQuery, forumID)
+
+	forum := entity.Forum{ForumID: forumID}
 	err = row.Scan(&forum.Title, &forum.Forumname, &forum.Creator, &forum.PostsCount, &forum.ThreadsCount)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -105,9 +106,9 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 	}
 	defer tx.Rollback(context.Background())
 
-	forum := entity.Forum{}
-
 	row := tx.QueryRow(context.Background(), getForumByForumnameQuery, forumname)
+
+	forum := entity.Forum{}
 	err = row.Scan(&forum.Title, &forum.Forumname, &forum.ForumID, &forum.Creator, &forum.PostsCount, &forum.ThreadsCount)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -180,8 +181,6 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string, limit int, sta
 	}
 	defer tx.Rollback(context.Background())
 
-	users := make([]*entity.User, 0)
-
 	var rows pgx.Rows
 	switch desc {
 	case true:
@@ -201,9 +200,9 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string, limit int, sta
 		return nil, err
 	}
 
+	users := make([]*entity.User, 0)
 	for rows.Next() {
 		user := entity.User{}
-
 		err = rows.Scan(&user.UserID, &user.Username, &user.EMail, &user.FullName, &user.Description)
 		if err != nil {
 			return nil, err
@@ -245,7 +244,6 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string, limit int, s
 	}
 	defer tx.Rollback(context.Background())
 
-	threads := make([]*entity.Thread, 0)
 	var rows pgx.Rows
 	switch desc {
 	case true:
@@ -265,9 +263,9 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string, limit int, s
 		return nil, err
 	}
 
+	threads := make([]*entity.Thread, 0)
 	for rows.Next() {
 		thread := entity.Thread{}
-
 		err = rows.Scan(&thread.ThreadID, &thread.Threadname, &thread.Title, &thread.Creator,
 			&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 		if err != nil {

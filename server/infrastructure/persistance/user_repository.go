@@ -86,9 +86,9 @@ func (userRepo *UserRepo) GetUserByUsername(username string) (*entity.User, erro
 	}
 	defer tx.Rollback(context.Background())
 
-	user := entity.User{}
-
 	row := tx.QueryRow(context.Background(), getUserByUsernameQuery, username)
+
+	user := entity.User{}
 	err = row.Scan(&user.UserID, &user.Username, &user.EMail, &user.FullName, &user.Description)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -114,9 +114,9 @@ func (userRepo *UserRepo) GetUserByEmail(email string) (*entity.User, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	user := entity.User{}
-
 	row := tx.QueryRow(context.Background(), getUserByEMailQuery, email)
+
+	user := entity.User{}
 	err = row.Scan(&user.UserID, &user.Username, &user.EMail, &user.FullName, &user.Description)
 	if err != nil {
 		if err == pgx.ErrNoRows {
