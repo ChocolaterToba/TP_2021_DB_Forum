@@ -11,15 +11,18 @@ type PostApp struct {
 	userRepo   repository.UserRepositoryInterface
 	threadRepo repository.ThreadRepositoryInterface
 	forumRepo  repository.ForumRepositoryInterface
+	serviceApp ServiceAppInterface
 }
 
 func NewPostApp(postRepo repository.PostRepositoryInterface, userRepo repository.UserRepositoryInterface,
-	threadRepo repository.ThreadRepositoryInterface, forumRepo repository.ForumRepositoryInterface) *PostApp {
+	threadRepo repository.ThreadRepositoryInterface, forumRepo repository.ForumRepositoryInterface,
+	serviceApp ServiceAppInterface) *PostApp {
 	return &PostApp{
 		postRepo:   postRepo,
 		userRepo:   userRepo,
 		threadRepo: threadRepo,
 		forumRepo:  forumRepo,
+		serviceApp: serviceApp,
 	}
 }
 
@@ -55,6 +58,10 @@ func (postApp *PostApp) CreatePost(post *entity.Post) (*entity.Post, error) {
 		return nil, err
 	}
 
+	err = postApp.serviceApp.IncrementPostsCount()
+	if err != nil {
+		return nil, err
+	}
 	return post, nil
 }
 

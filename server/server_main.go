@@ -37,11 +37,11 @@ func runServer(addr string) {
 	threadRepo := persistance.NewThreadRepo(postgresConn)
 	serviceRepo := persistance.NewServiceRepo(postgresConn)
 
-	userApp := application.NewUserApp(userRepo)
-	forumApp := application.NewForumApp(forumRepo)
-	postApp := application.NewPostApp(postRepo, userRepo, threadRepo, forumRepo)
-	threadApp := application.NewThreadApp(threadRepo, postApp)
 	serviceApp := application.NewServiceApp(serviceRepo)
+	userApp := application.NewUserApp(userRepo, serviceApp)
+	forumApp := application.NewForumApp(forumRepo, serviceApp)
+	postApp := application.NewPostApp(postRepo, userRepo, threadRepo, forumRepo, serviceApp)
+	threadApp := application.NewThreadApp(threadRepo, postRepo, serviceApp)
 
 	userInfo := interfaces.NewUserInfo(userApp)
 	forumInfo := interfaces.NewForumInfo(forumApp)

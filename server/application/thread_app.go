@@ -7,13 +7,17 @@ import (
 
 type ThreadApp struct {
 	threadRepo repository.ThreadRepositoryInterface
-	postApp    PostAppInterface
+	postRepo   repository.PostRepositoryInterface
+	serviceApp ServiceAppInterface
 }
 
-func NewThreadApp(threadRepo repository.ThreadRepositoryInterface, postApp PostAppInterface) *ThreadApp {
+func NewThreadApp(threadRepo repository.ThreadRepositoryInterface,
+	postRepo repository.PostRepositoryInterface,
+	serviceApp ServiceAppInterface) *ThreadApp {
 	return &ThreadApp{
 		threadRepo: threadRepo,
-		postApp:    postApp,
+		postRepo:   postRepo,
+		serviceApp: serviceApp,
 	}
 }
 
@@ -52,6 +56,11 @@ func (threadApp *ThreadApp) CreateThread(thread *entity.Thread) (*entity.Thread,
 
 	thread.ThreadID = threadID
 	thread.Forumname = forumname
+
+	err = threadApp.serviceApp.IncrementThreadsCount()
+	if err != nil {
+		return nil, err
+	}
 	return thread, nil
 }
 
@@ -97,7 +106,7 @@ func (threadApp *ThreadApp) GetPostsByThreadID(threadID int, sortMode string, li
 		}
 
 		for _, post := range topPosts {
-			postTree, err := threadApp.postApp.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
+			postTree, err := threadApp.postRepo.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
 			if err != nil {
 				return nil, err
 			}
@@ -141,7 +150,7 @@ func (threadApp *ThreadApp) GetPostsByThreadname(threadname string, sortMode str
 		}
 
 		for _, post := range topPosts {
-			postTree, err := threadApp.postApp.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
+			postTree, err := threadApp.postRepo.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
 			if err != nil {
 				return nil, err
 			}

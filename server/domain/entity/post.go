@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"strings"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -27,18 +28,20 @@ type RelatedObjectsInput struct {
 
 func QueryToRelatedObjectsInput(query *fasthttp.Args) (*RelatedObjectsInput, error) {
 	postInput := new(RelatedObjectsInput)
+	postInput.RelatedObjects = make(map[string]bool)
 
-	relatedObjectsBytes := query.PeekMulti("related")
-	for _, relatedObject := range relatedObjectsBytes {
-		relatedObjectString := string(relatedObject)
+	relatedObjectsBytes := query.Peek("related")
+	relatedObjectStrings := string(relatedObjectsBytes)
+	for _, relatedObjectString := range strings.Split(relatedObjectStrings, ",") {
 		switch relatedObjectString {
 		case "user", "forum", "thread":
 			postInput.RelatedObjects[relatedObjectString] = true
+		case "":
+			continue
 		default:
 			return nil, UnsupportedRelatedObjectError
 		}
 	}
-
 	return postInput, nil
 }
 

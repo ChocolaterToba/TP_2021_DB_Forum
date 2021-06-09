@@ -6,11 +6,15 @@ import (
 )
 
 type UserApp struct {
-	userRepo repository.UserRepositoryInterface
+	userRepo   repository.UserRepositoryInterface
+	serviceApp ServiceAppInterface
 }
 
-func NewUserApp(userRepo repository.UserRepositoryInterface) *UserApp {
-	return &UserApp{userRepo}
+func NewUserApp(userRepo repository.UserRepositoryInterface, serviceApp ServiceAppInterface) *UserApp {
+	return &UserApp{
+		userRepo:   userRepo,
+		serviceApp: serviceApp,
+	}
 }
 
 type UserAppInterface interface {
@@ -63,6 +67,10 @@ func (userApp *UserApp) CreateUser(user *entity.User) (interface{}, error) {
 		}
 	}
 
+	err = userApp.serviceApp.IncrementUsersCount()
+	if err != nil {
+		return nil, err
+	}
 	return userID, nil
 }
 

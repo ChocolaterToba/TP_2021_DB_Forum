@@ -7,11 +7,15 @@ import (
 )
 
 type ForumApp struct {
-	forumRepo repository.ForumRepositoryInterface
+	forumRepo  repository.ForumRepositoryInterface
+	serviceApp ServiceAppInterface
 }
 
-func NewForumApp(forumRepo repository.ForumRepositoryInterface) *ForumApp {
-	return &ForumApp{forumRepo}
+func NewForumApp(forumRepo repository.ForumRepositoryInterface, serviceApp ServiceAppInterface) *ForumApp {
+	return &ForumApp{
+		forumRepo:  forumRepo,
+		serviceApp: serviceApp,
+	}
 }
 
 type ForumAppInterface interface {
@@ -49,6 +53,10 @@ func (forumApp *ForumApp) CreateForum(forum *entity.ForumCreateInput) (*entity.F
 	createdForum.Forumname = forum.Forumname
 	createdForum.Title = forum.Title
 
+	err = forumApp.serviceApp.IncrementForumsCount()
+	if err != nil {
+		return nil, err
+	}
 	return createdForum, nil
 }
 

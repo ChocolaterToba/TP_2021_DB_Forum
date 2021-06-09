@@ -336,6 +336,17 @@ func (threadInfo *ThreadInfo) VoteThread(ctx *fasthttp.RequestCtx) {
 			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
+		case entity.UserNotFoundError:
+			responseBody, err := json.Marshal(entity.MessageOutput{"Could not find user"})
+			if err != nil {
+				ctx.SetStatusCode(http.StatusInternalServerError)
+				return
+			}
+
+			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
+			ctx.SetBody(responseBody)
+			return
 		case entity.IncorrectVoteAmountError:
 			ctx.SetStatusCode(http.StatusBadRequest)
 			return

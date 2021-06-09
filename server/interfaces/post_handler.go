@@ -239,7 +239,7 @@ func (postInfo *PostInfo) EditPost(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	if postInput.Message == "" { // No need for editing
+	if postInput.Message == "" || post.Message == postInput.Message { // No need for editing
 		responseBody, err := json.Marshal(post)
 		if err != nil {
 			ctx.SetStatusCode(http.StatusInternalServerError)
@@ -251,10 +251,9 @@ func (postInfo *PostInfo) EditPost(ctx *fasthttp.RequestCtx) {
 		ctx.SetBody(responseBody)
 		return
 	}
+
 	post.Message = postInput.Message
 	post.IsEdited = true
-
-	//TODO: validate
 
 	err = postInfo.postApp.EditPost(post)
 	if err != nil {

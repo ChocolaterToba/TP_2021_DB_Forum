@@ -3,7 +3,6 @@ package interfaces
 import (
 	"dbforum/application"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/valyala/fasthttp"
@@ -20,7 +19,6 @@ func NewServiceInfo(serviceApp application.ServiceAppInterface) *ServiceInfo {
 func (serviceInfo *ServiceInfo) GetForumStats(ctx *fasthttp.RequestCtx) {
 	service, err := serviceInfo.serviceApp.GetStats()
 	if err != nil {
-		fmt.Println(err)
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
 	}
