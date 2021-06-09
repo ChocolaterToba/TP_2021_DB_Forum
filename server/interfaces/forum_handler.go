@@ -131,7 +131,7 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 	}
 
 	users, err := forumInfo.forumApp.GetUsersByForumname(forumname, forumInput.Limit, forumInput.StartAfter, forumInput.Desc)
-	if err != nil {
+	if err != nil && err != entity.UserNotFoundError {
 		switch err {
 		case entity.ForumNotFoundError:
 			responseBody, err := json.Marshal(entity.MessageOutput{"Can't find forum"})
@@ -150,9 +150,9 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if users == nil {
-		users = make([]*entity.User, 0) // So that it marshalls as [] and not nil
-	}
+	// if users == nil {
+	// 	users = make([]*entity.User, 0) // So that it marshalls as [] and not nil
+	// }
 
 	responseBody, err := json.Marshal(users)
 	if err != nil {
@@ -184,7 +184,7 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 	}
 
 	threads, err := forumInfo.forumApp.GetThreadsByForumname(forumname, forumInput.Limit, forumInput.StartFrom, forumInput.Desc)
-	if err != nil {
+	if err != nil && err != entity.ThreadNotFoundError {
 		switch err {
 		case entity.ForumNotFoundError:
 			responseBody, err := json.Marshal(entity.MessageOutput{"Can't find forum"})
@@ -203,9 +203,9 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if threads == nil {
-		threads = make([]*entity.Thread, 0) // So that it marshalls as [] and not nil
-	}
+	// if threads == nil {
+	// 	threads = make([]*entity.Thread, 0) // So that it marshalls as [] and not nil
+	// }
 
 	responseBody, err := json.Marshal(threads)
 	if err != nil {

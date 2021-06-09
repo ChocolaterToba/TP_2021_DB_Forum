@@ -188,9 +188,9 @@ func (threadApp *ThreadApp) VoteThreadByID(threadID int, username string, voteAm
 		return nil, entity.IncorrectVoteAmountError
 	}
 
-	err = threadApp.threadRepo.VoteThreadByThreadname(thread.Threadname, username, upvote)
+	err = threadApp.threadRepo.VoteThreadByThreadID(threadID, username, upvote)
 	if err == entity.VoteAlreadyExistsError {
-		err = threadApp.threadRepo.ChangeVoteThreadByThreadname(thread.Threadname, username, upvote)
+		err = threadApp.threadRepo.ChangeVoteThreadByThreadID(threadID, username, upvote)
 		if err == entity.VoteAlreadyExistsError {
 			return thread, nil
 		}
@@ -235,9 +235,9 @@ func (threadApp *ThreadApp) VoteThreadByThreadname(threadname string, username s
 		return nil, entity.IncorrectVoteAmountError
 	}
 
-	err = threadApp.threadRepo.VoteThreadByThreadname(threadname, username, upvote)
+	err = threadApp.threadRepo.VoteThreadByThreadID(thread.ThreadID, username, upvote)
 	if err == entity.VoteAlreadyExistsError {
-		err = threadApp.threadRepo.ChangeVoteThreadByThreadname(threadname, username, upvote)
+		err = threadApp.threadRepo.ChangeVoteThreadByThreadID(thread.ThreadID, username, upvote)
 		if err == entity.VoteAlreadyExistsError {
 			return thread, nil
 		}

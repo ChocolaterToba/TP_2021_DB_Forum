@@ -3,9 +3,11 @@ package persistance
 import (
 	"context"
 	"dbforum/domain/entity"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -266,10 +268,15 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string, limit int, s
 	threads := make([]*entity.Thread, 0)
 	for rows.Next() {
 		thread := entity.Thread{}
-		err = rows.Scan(&thread.ThreadID, &thread.Threadname, &thread.Title, &thread.Creator,
+		var threadname pgtype.Text
+		err = rows.Scan(&thread.ThreadID, &threadname, &thread.Title, &thread.Creator,
 			&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 		if err != nil {
+			fmt.Println(err)
 			return nil, err
+		}
+		if threadname.Status != pgtype.Null {
+			thread.Threadname = threadname.String
 		}
 		threads = append(threads, &thread)
 	}

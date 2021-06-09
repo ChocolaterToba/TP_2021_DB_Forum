@@ -10,6 +10,6 @@ type ThreadRepositoryInterface interface {
 	GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error)
 	GetPostsByThreadIDTree(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error)
 	GetPostsByThreadIDTop(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) // Returns only top posts with no parent
-	VoteThreadByThreadname(threadname string, username string, upvote bool) error
-	ChangeVoteThreadByThreadname(threadname string, username string, upvote bool) error
+	VoteThreadByThreadID(threadID int, username string, upvote bool) error
+	ChangeVoteThreadByThreadID(threadID int, username string, upvote bool) error
 }

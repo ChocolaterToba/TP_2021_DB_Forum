@@ -259,7 +259,7 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 		posts, err = threadInfo.threadApp.GetPostsByThreadname(threadname, threadInput.SortMode, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
 	}
 
-	if err != nil {
+	if err != nil && err != entity.PostNotFoundError {
 		switch err {
 		case entity.ThreadNotFoundError:
 			responseBody, err := json.Marshal(entity.MessageOutput{"Can't find thread"})
@@ -281,9 +281,9 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	if posts == nil {
-		posts = make([]*entity.Post, 0) // So that it marshalls as [] and not nil
-	}
+	// if posts == nil {
+	// 	posts = make([]*entity.Post, 0) // So that it marshalls as [] and not nil
+	// }
 
 	responseBody, err := json.Marshal(posts)
 	if err != nil {

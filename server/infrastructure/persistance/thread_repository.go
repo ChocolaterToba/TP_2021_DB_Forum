@@ -5,6 +5,7 @@ import (
 	"dbforum/domain/entity"
 	"strings"
 
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -99,13 +100,17 @@ func (threadRepo *ThreadRepo) GetThreadByID(threadID int) (*entity.Thread, error
 	row := tx.QueryRow(context.Background(), getThreadByIDQuery, threadID)
 
 	thread := entity.Thread{ThreadID: threadID}
-	err = row.Scan(&thread.Threadname, &thread.Title, &thread.Creator,
+	var threadname pgtype.Text
+	err = row.Scan(&threadname, &thread.Title, &thread.Creator,
 		&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.ThreadNotFoundError
 		}
 		return nil, err
+	}
+	if threadname.Status != pgtype.Null {
+		thread.Threadname = threadname.String
 	}
 
 	err = tx.Commit(context.Background())
@@ -381,26 +386,26 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, sta
 	return posts, nil
 }
 
-const insertVoteByThreadnameQuery string = "INSERT INTO Votes (threadname, username, upvote)\n" +
+const insertVoteByThreadnameQuery string = "INSERT INTO Votes (threadID, username, upvote)\n" +
 	"VALUES ($1, $2, $3)"
 const increaseThreadRatingQuery string = "UPDATE Threads\n" +
 	"SET rating = rating + $2\n" +
-	"WHERE threadname=$1"
+	"WHERE threadID=$1"
 const decreaseThreadRatingQuery string = "UPDATE Threads\n" +
 	"SET rating = rating - $2\n" +
-	"WHERE threadname=$1"
+	"WHERE threadID=$1"
 
-func (threadRepo *ThreadRepo) VoteThreadByThreadname(threadname string, username string, upvote bool) error {
+func (threadRepo *ThreadRepo) VoteThreadByThreadID(threadID int, username string, upvote bool) error {
 	tx, err := threadRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return entity.TransactionBeginError
 	}
 	defer tx.Rollback(context.Background())
 
-	_, err = tx.Exec(context.Background(), insertVoteByThreadnameQuery, threadname, username, upvote)
+	_, err = tx.Exec(context.Background(), insertVoteByThreadnameQuery, threadID, username, upvote)
 	if err != nil {
 		switch {
-		case strings.Contains(err.Error(), "violates foreign key constraint \"votes_fk_threadname\""):
+		case strings.Contains(err.Error(), "violates foreign key constraint \"votes_fk_threadID\""):
 			return entity.ThreadNotFoundError
 		case strings.Contains(err.Error(), "violates foreign key constraint \"votes_fk_username\""):
 			return entity.UserNotFoundError
@@ -413,12 +418,12 @@ func (threadRepo *ThreadRepo) VoteThreadByThreadname(threadname string, username
 
 	switch upvote {
 	case true:
-		_, err = tx.Exec(context.Background(), increaseThreadRatingQuery, threadname, 1)
+		_, err = tx.Exec(context.Background(), increaseThreadRatingQuery, threadID, 1)
 		if err != nil {
 			return err
 		}
 	case false:
-		_, err = tx.Exec(context.Background(), decreaseThreadRatingQuery, threadname, 1)
+		_, err = tx.Exec(context.Background(), decreaseThreadRatingQuery, threadID, 1)
 		if err != nil {
 			return err
 		}
@@ -433,19 +438,19 @@ func (threadRepo *ThreadRepo) VoteThreadByThreadname(threadname string, username
 
 const getVoteByThreadnameQuery string = "SELECT upvote\n" +
 	"FROM Votes\n" +
-	"WHERE threadname=$1 AND username=$2"
+	"WHERE threadID=$1 AND username=$2"
 const updateVoteByThreadnameQuery string = "UPDATE Votes\n" +
 	"SET upvote = $3\n" +
-	"WHERE threadname=$1 AND username=$2"
+	"WHERE threadID=$1 AND username=$2"
 
-func (threadRepo *ThreadRepo) ChangeVoteThreadByThreadname(threadname string, username string, upvote bool) error {
+func (threadRepo *ThreadRepo) ChangeVoteThreadByThreadID(threadID int, username string, upvote bool) error {
 	tx, err := threadRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return entity.TransactionBeginError
 	}
 	defer tx.Rollback(context.Background())
 
-	row := tx.QueryRow(context.Background(), getVoteByThreadnameQuery, threadname, username)
+	row := tx.QueryRow(context.Background(), getVoteByThreadnameQuery, threadID, username)
 	var wasUpvoted bool
 	err = row.Scan(&wasUpvoted)
 	if err != nil {
@@ -462,18 +467,18 @@ func (threadRepo *ThreadRepo) ChangeVoteThreadByThreadname(threadname string, us
 
 	switch upvote {
 	case true:
-		_, err = tx.Exec(context.Background(), increaseThreadRatingQuery, threadname, 2) // 2 to compensate previous downvote
+		_, err = tx.Exec(context.Background(), increaseThreadRatingQuery, threadID, 2) // 2 to compensate previous downvote
 		if err != nil {
 			return err
 		}
 	case false:
-		_, err = tx.Exec(context.Background(), decreaseThreadRatingQuery, threadname, 2)
+		_, err = tx.Exec(context.Background(), decreaseThreadRatingQuery, threadID, 2)
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err = tx.Exec(context.Background(), updateVoteByThreadnameQuery, threadname, username, upvote)
+	_, err = tx.Exec(context.Background(), updateVoteByThreadnameQuery, threadID, username, upvote)
 	if err != nil {
 		return err
 	}

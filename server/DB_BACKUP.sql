@@ -30,6 +30,20 @@ CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
 
 
+--
+-- Name: tablefunc; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS tablefunc WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION tablefunc; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION tablefunc IS 'functions that manipulate whole tables, including crosstab';
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -196,8 +210,8 @@ ALTER SEQUENCE public.users_userid_seq OWNED BY public.users.userid;
 CREATE TABLE public.votes (
     voteid integer NOT NULL,
     username public.citext NOT NULL,
-    threadname public.citext NOT NULL,
-    upvote boolean DEFAULT false NOT NULL
+    upvote boolean DEFAULT false NOT NULL,
+    threadid integer NOT NULL
 );
 
 
@@ -333,18 +347,39 @@ ALTER TABLE ONLY public.votes
 
 
 --
--- Name: votes votes_un_user_thread; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: votes votes_un_username_threadID; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.votes
-    ADD CONSTRAINT votes_un_user_thread UNIQUE (username, threadname);
+    ADD CONSTRAINT "votes_un_username_threadID" UNIQUE (username, threadid);
 
 
 --
--- Name: forums_forumname_idx; Type: INDEX; Schema: public; Owner: postgres
+-- Name: forums_creator_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX forums_forumname_idx ON public.forums USING btree (forumname);
+CREATE INDEX forums_creator_idx ON public.forums USING btree (creator);
+
+
+--
+-- Name: posts_creator_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_creator_idx ON public.posts USING btree (creator);
+
+
+--
+-- Name: posts_path_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_path_idx ON public.posts USING gin (path);
+
+
+--
+-- Name: posts_threadid_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_threadid_idx ON public.posts USING btree (threadid);
 
 
 --
@@ -362,59 +397,59 @@ CREATE INDEX threads_forumname_idx ON public.threads USING btree (forumname);
 
 
 --
--- Name: forums forums_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: forums forums_fk_creator; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.forums
-    ADD CONSTRAINT forums_fk FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT forums_fk_creator FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: posts posts_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_fk FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
--- Name: posts posts_fk_1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: posts posts_fk_creator; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_fk_1 FOREIGN KEY (threadid) REFERENCES public.threads(threadid) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT posts_fk_creator FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: threads threads_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: posts posts_fk_threadid; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_fk_threadid FOREIGN KEY (threadid) REFERENCES public.threads(threadid) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: threads threads_fk_creator; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.threads
-    ADD CONSTRAINT threads_fk FOREIGN KEY (forumname) REFERENCES public.forums(forumname) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT threads_fk_creator FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: threads threads_fk_1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: threads threads_fk_forumname; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.threads
-    ADD CONSTRAINT threads_fk_1 FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT threads_fk_forumname FOREIGN KEY (forumname) REFERENCES public.forums(forumname) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: votes votes_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.votes
-    ADD CONSTRAINT votes_fk FOREIGN KEY (username) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
--- Name: votes votes_fk_1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: votes votes_fk_threadid; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.votes
-    ADD CONSTRAINT votes_fk_1 FOREIGN KEY (threadname) REFERENCES public.threads(threadname) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT votes_fk_threadid FOREIGN KEY (threadid) REFERENCES public.threads(threadid) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: votes votes_fk_username; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.votes
+    ADD CONSTRAINT votes_fk_username FOREIGN KEY (username) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
