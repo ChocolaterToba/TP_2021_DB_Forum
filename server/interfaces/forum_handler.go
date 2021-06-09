@@ -150,9 +150,9 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// if users == nil {
-	// 	users = make([]*entity.User, 0) // So that it marshalls as [] and not nil
-	// }
+	if users == nil {
+		users = make([]*entity.User, 0) // So that it marshalls as [] and not nil
+	}
 
 	responseBody, err := json.Marshal(users)
 	if err != nil {
@@ -203,9 +203,9 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// if threads == nil {
-	// 	threads = make([]*entity.Thread, 0) // So that it marshalls as [] and not nil
-	// }
+	if threads == nil {
+		threads = make([]*entity.Thread, 0) // So that it marshalls as [] and not nil
+	}
 
 	responseBody, err := json.Marshal(threads)
 	if err != nil {

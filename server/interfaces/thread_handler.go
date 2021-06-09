@@ -281,9 +281,9 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	// if posts == nil {
-	// 	posts = make([]*entity.Post, 0) // So that it marshalls as [] and not nil
-	// }
+	if posts == nil {
+		posts = make([]*entity.Post, 0) // So that it marshalls as [] and not nil
+	}
 
 	responseBody, err := json.Marshal(posts)
 	if err != nil {

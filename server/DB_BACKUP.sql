@@ -383,6 +383,13 @@ CREATE INDEX posts_threadid_idx ON public.posts USING btree (threadid);
 
 
 --
+-- Name: posts_tree_search_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_tree_search_idx ON public.posts USING btree (threadid, path);
+
+
+--
 -- Name: threads_creator_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 

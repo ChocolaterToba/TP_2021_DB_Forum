@@ -27,10 +27,14 @@ const createThreadWithThreadnameQuery string = "INSERT INTO Threads (threadname,
 
 //Replacing thread's forumname to one passed when creating forumname
 const replaceThreadForumnameQuery string = "UPDATE Threads as thread\n" +
-	"SET forumname=forum.forumname\n" +
-	"FROM Forums as forum\n" +
-	"WHERE thread.threadID=$1 AND thread.forumname=forum.forumname\n" +
-	"RETURNING forum.forumname"
+	"SET forumname=subquery.forumname\n" +
+	"FROM (\n" +
+	"  SELECT forumname\n" +
+	"  FROM Forums\n" +
+	"  WHERE forumname=$2\n" +
+	") as subquery\n" +
+	"WHERE thread.threadID=$1\n" +
+	"RETURNING subquery.forumname"
 const increaseForumThreadCountQuery string = "UPDATE Forums\n" +
 	"SET threads_count = threads_count + 1\n" +
 	"WHERE forumname=$1"
@@ -67,7 +71,7 @@ func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, string, 
 		}
 	}
 
-	row = tx.QueryRow(context.Background(), replaceThreadForumnameQuery, newThreadID)
+	row = tx.QueryRow(context.Background(), replaceThreadForumnameQuery, newThreadID, thread.Forumname)
 	newForumname := ""
 	err = row.Scan(&newForumname)
 	if err != nil {
@@ -246,20 +250,18 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDFlat(threadID int, limit int, st
 const getPostsByThreadIDTreeQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
 	"FROM Posts\n" +
 	"WHERE threadID=$1 AND " +
-	"COALESCE(" +
-	"path>(SELECT path FROM Posts WHERE threadID=$1 AND postID=$2), " +
-	"path>=(SELECT path FROM Posts WHERE threadID=$1 AND postID>$2 ORDER BY postID LIMIT 1), " +
-	"false)\n" +
+	"path>COALESCE(\n" +
+	"(SELECT path FROM Posts WHERE threadID=$1 AND postID=$2),\n" +
+	"  ARRAY[]::integer[])\n" +
 	"ORDER BY path\n" +
 	"LIMIT $3"
 
 const getPostsByThreadIDTreeDescQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
 	"FROM Posts\n" +
 	"WHERE threadID=$1 AND " +
-	"COALESCE(" +
-	"path<(SELECT path FROM Posts WHERE threadID=$1 AND postID=$2), " +
-	"path<=(SELECT path FROM Posts WHERE threadID=$1 AND postID<$2 ORDER BY postID DESC LIMIT 1), " +
-	"false)\n" +
+	"path<COALESCE(\n" +
+	"(SELECT path FROM Posts WHERE threadID=$1 AND postID=$2),\n" +
+	"  ARRAY[2147483647]::integer[])\n" + // array[2147483647] is bigger than expected forum arrays
 	"ORDER BY path DESC\n" +
 	"LIMIT $3"
 
