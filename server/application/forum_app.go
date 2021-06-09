@@ -67,6 +67,11 @@ func (forumApp *ForumApp) GetForumByForumname(forumname string) (*entity.Forum, 
 // GetUsersByForumname finds all users belonging to specified forum, ordered, starting after user with username = startAfter
 // It returns slice of them, nil on success and nil, error on failure
 func (forumApp *ForumApp) GetUsersByForumname(forumname string, limit int, startAfter string, desc bool) ([]*entity.User, error) {
+	_, err := forumApp.GetForumByForumname(forumname)
+	if err != nil {
+		return nil, err
+	}
+
 	if limit == 0 {
 		limit = 100 // Default limit
 	}
@@ -84,5 +89,6 @@ func (forumApp *ForumApp) GetThreadsByForumname(forumname string, limit int, sta
 	if limit == 0 {
 		limit = 100 // Default limit
 	}
+
 	return forumApp.forumRepo.GetThreadsByForumname(forumname, limit, startFrom, desc)
 }

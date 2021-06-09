@@ -7,21 +7,27 @@ import (
 )
 
 type PostApp struct {
-	postRepo  repository.PostRepositoryInterface
-	threadApp ThreadAppInterface
+	postRepo   repository.PostRepositoryInterface
+	userRepo   repository.UserRepositoryInterface
+	threadRepo repository.ThreadRepositoryInterface
+	forumRepo  repository.ForumRepositoryInterface
 }
 
-func NewPostApp(postRepo repository.PostRepositoryInterface, threadApp ThreadAppInterface) *PostApp {
+func NewPostApp(postRepo repository.PostRepositoryInterface, userRepo repository.UserRepositoryInterface,
+	threadRepo repository.ThreadRepositoryInterface, forumRepo repository.ForumRepositoryInterface) *PostApp {
 	return &PostApp{
-		postRepo:  postRepo,
-		threadApp: threadApp,
+		postRepo:   postRepo,
+		userRepo:   userRepo,
+		threadRepo: threadRepo,
+		forumRepo:  forumRepo,
 	}
 }
 
 type PostAppInterface interface {
 	CreatePost(post *entity.Post) (*entity.Post, error)
 	GetPostByID(postID int) (*entity.Post, error)
-	GetChildPosts(postID int) ([]*entity.Post, error)
+	GetPostRelatives(post *entity.Post, relatives map[string]bool) (*entity.PostFullOutput, error)
+	GetPostTree(postID int, desc bool) ([]*entity.Post, error)
 	EditPost(post *entity.Post) error
 }
 
@@ -35,7 +41,7 @@ func (postApp *PostApp) CreatePost(post *entity.Post) (*entity.Post, error) {
 			return nil, entity.ParentNotFoundError
 		}
 		if parentPost.ThreadID != post.ThreadID {
-			return nil, entity.ParentNotFoundError
+			return nil, entity.ParentInAnotherThreadError
 		}
 	}
 
@@ -64,8 +70,42 @@ func (postApp *PostApp) GetPostByID(postID int) (*entity.Post, error) {
 	return postApp.postRepo.GetPostByID(postID)
 }
 
-// GetChildPosts fetches posts that are 'children' of passed post
+// GetPostRelatives fetches post's thread, forum and user if specified
+// It returns struct with fetched post, thread..., nil on success and nil, error on failure
+func (postApp *PostApp) GetPostRelatives(post *entity.Post, relatives map[string]bool) (*entity.PostFullOutput, error) {
+	output := new(entity.PostFullOutput)
+	output.PostOutput = post
+
+	var err error
+	if relatives["user"] {
+		output.UserOutput, err = postApp.userRepo.GetUserByUsername(post.Creator)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if relatives["thread"] || relatives["forum"] {
+		thread, err := postApp.threadRepo.GetThreadByID(post.ThreadID)
+		if err != nil {
+			return nil, err
+		}
+
+		if relatives["thread"] {
+			output.ThreadOutput = thread
+		}
+
+		if relatives["forum"] {
+			output.ForumOutput, err = postApp.forumRepo.GetForumByForumname(thread.Forumname)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return output, nil
+}
+
+// GetPostTree fetches post, it's children, their children... in tree order
 // It returns that post, nil on success and nil, error on failure
-func (postApp *PostApp) GetChildPosts(postID int) ([]*entity.Post, error) {
-	return postApp.postRepo.GetChildPosts(postID)
+func (postApp *PostApp) GetPostTree(postID int, desc bool) ([]*entity.Post, error) {
+	return postApp.postRepo.GetPostTree(postID, desc)
 }

@@ -8,6 +8,8 @@ type ThreadRepositoryInterface interface {
 	GetThreadByThreadname(threadname string) (*entity.Thread, error)
 	EditThread(thread *entity.Thread) error
 	GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error)
+	GetPostsByThreadIDTree(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error)
+	GetPostsByThreadIDTop(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) // Returns only top posts with no parent
 	VoteThreadByThreadname(threadname string, username string, upvote bool) error
 	ChangeVoteThreadByThreadname(threadname string, username string, upvote bool) error
 }

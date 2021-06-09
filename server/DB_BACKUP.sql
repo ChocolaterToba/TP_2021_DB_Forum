@@ -17,13 +17,18 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: case_insensitive; Type: COLLATION; Schema: public; Owner: postgres
+-- Name: citext; Type: EXTENSION; Schema: -; Owner: -
 --
 
-CREATE COLLATION public.case_insensitive (provider = icu, deterministic = false, locale = 'und-u-ks-level2');
+CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 
 
-ALTER COLLATION public.case_insensitive OWNER TO postgres;
+--
+-- Name: EXTENSION citext; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
+
 
 SET default_tablespace = '';
 
@@ -36,8 +41,8 @@ SET default_table_access_method = heap;
 CREATE TABLE public.forums (
     forumid integer NOT NULL,
     title character varying(100) NOT NULL,
-    creator character varying(50) NOT NULL COLLATE public.case_insensitive,
-    forumname character varying(50) NOT NULL COLLATE public.case_insensitive,
+    creator public.citext NOT NULL,
+    forumname public.citext NOT NULL,
     posts_count integer DEFAULT 0 NOT NULL,
     threads_count integer DEFAULT 0 NOT NULL
 );
@@ -74,11 +79,12 @@ ALTER SEQUENCE public.forums_forumid_seq OWNED BY public.forums.forumid;
 CREATE TABLE public.posts (
     postid integer NOT NULL,
     parentid integer DEFAULT 0 NOT NULL,
-    creator character varying(50) NOT NULL COLLATE public.case_insensitive,
+    creator public.citext NOT NULL,
     message text,
     isedited boolean DEFAULT false NOT NULL,
     threadid integer NOT NULL,
-    created timestamp(3) with time zone DEFAULT now() NOT NULL
+    created timestamp(3) with time zone DEFAULT now() NOT NULL,
+    path integer[] NOT NULL
 );
 
 
@@ -112,13 +118,13 @@ ALTER SEQUENCE public.posts_postid_seq OWNED BY public.posts.postid;
 
 CREATE TABLE public.threads (
     threadid integer NOT NULL,
-    creator character varying(50) NOT NULL COLLATE public.case_insensitive,
+    creator public.citext NOT NULL,
     title character varying(100) NOT NULL,
-    forumname character varying(50) DEFAULT NULL::character varying COLLATE public.case_insensitive,
+    forumname public.citext DEFAULT NULL::character varying,
     message text,
     created timestamp(3) with time zone DEFAULT now() NOT NULL,
     rating integer DEFAULT 0 NOT NULL,
-    threadname character varying(20)
+    threadname public.citext
 );
 
 
@@ -152,8 +158,8 @@ ALTER SEQUENCE public.threads_threadid_seq OWNED BY public.threads.threadid;
 
 CREATE TABLE public.users (
     userid integer NOT NULL,
-    username character varying(50) NOT NULL COLLATE public.case_insensitive,
-    email character varying(50) NOT NULL COLLATE public.case_insensitive,
+    username public.citext NOT NULL,
+    email public.citext NOT NULL,
     fullname character varying(100),
     description text
 );
@@ -189,8 +195,8 @@ ALTER SEQUENCE public.users_userid_seq OWNED BY public.users.userid;
 
 CREATE TABLE public.votes (
     voteid integer NOT NULL,
-    username character varying(50) NOT NULL COLLATE public.case_insensitive,
-    threadname character varying(50) NOT NULL,
+    username public.citext NOT NULL,
+    threadname public.citext NOT NULL,
     upvote boolean DEFAULT false NOT NULL
 );
 
@@ -356,59 +362,59 @@ CREATE INDEX threads_forumname_idx ON public.threads USING btree (forumname);
 
 
 --
--- Name: forums forums_fk_username; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: forums forums_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.forums
-    ADD CONSTRAINT forums_fk_username FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT forums_fk FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: posts posts_fk_threadid; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_fk_threadid FOREIGN KEY (threadid) REFERENCES public.threads(threadid) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
--- Name: posts posts_fk_username; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: posts posts_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.posts
-    ADD CONSTRAINT posts_fk_username FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT posts_fk FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: threads threads_fk_forumname; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: posts posts_fk_1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_fk_1 FOREIGN KEY (threadid) REFERENCES public.threads(threadid) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: threads threads_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.threads
-    ADD CONSTRAINT threads_fk_forumname FOREIGN KEY (forumname) REFERENCES public.forums(forumname) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT threads_fk FOREIGN KEY (forumname) REFERENCES public.forums(forumname) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: threads threads_fk_username; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: threads threads_fk_1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.threads
-    ADD CONSTRAINT threads_fk_username FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT threads_fk_1 FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
--- Name: votes votes_fk_threadname; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.votes
-    ADD CONSTRAINT votes_fk_threadname FOREIGN KEY (threadname) REFERENCES public.threads(threadname) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
--- Name: votes votes_fk_username; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+-- Name: votes votes_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.votes
-    ADD CONSTRAINT votes_fk_username FOREIGN KEY (username) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT votes_fk FOREIGN KEY (username) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: votes votes_fk_1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.votes
+    ADD CONSTRAINT votes_fk_1 FOREIGN KEY (threadname) REFERENCES public.threads(threadname) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --

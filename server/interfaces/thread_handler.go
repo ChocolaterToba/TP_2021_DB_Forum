@@ -57,8 +57,20 @@ func (threadInfo *ThreadInfo) CreateThread(ctx *fasthttp.RequestCtx) {
 			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
+			//TODO: rework
 		case entity.ForumNotFoundError:
 			responseBody, err := json.Marshal(entity.MessageOutput{"Can't find forum"})
+			if err != nil {
+				ctx.SetStatusCode(http.StatusInternalServerError)
+				return
+			}
+
+			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
+			ctx.SetBody(responseBody)
+			return
+		case entity.UserNotFoundError:
+			responseBody, err := json.Marshal(entity.MessageOutput{"Could not find user"})
 			if err != nil {
 				ctx.SetStatusCode(http.StatusInternalServerError)
 				return
@@ -239,14 +251,12 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 	}
 
 	threadID, err := strconv.Atoi(threadname)
-	var posts interface{}
+	var posts []*entity.Post
 	switch err {
 	case nil:
-		//TODO: non-flat sorts
-		posts, err = threadInfo.threadApp.GetPostsByThreadIDFlat(threadID, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
+		posts, err = threadInfo.threadApp.GetPostsByThreadID(threadID, threadInput.SortMode, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
 	default:
-		//TODO: non-flat sorts
-		posts, err = threadInfo.threadApp.GetPostsByThreadnameFlat(threadname, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
+		posts, err = threadInfo.threadApp.GetPostsByThreadname(threadname, threadInput.SortMode, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
 	}
 
 	if err != nil {
@@ -262,10 +272,17 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 			ctx.SetContentType("application/json")
 			ctx.SetBody(responseBody)
 			return
+		case entity.UnsupportedSortingModeError:
+			ctx.SetStatusCode(http.StatusBadRequest)
+			return
 		default:
 			ctx.SetStatusCode(http.StatusInternalServerError)
 			return
 		}
+	}
+
+	if posts == nil {
+		posts = make([]*entity.Post, 0) // So that it marshalls as [] and not nil
 	}
 
 	responseBody, err := json.Marshal(posts)

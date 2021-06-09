@@ -61,7 +61,8 @@ type ForumGetThreadsInput struct {
 	Desc      bool      `json:"desc"`
 }
 
-const inputTimeLayout string = "2006-01-02T15:04:05.000Z"
+const inputTimeLayoutWithTimezone string = "2006-01-02T15:04:05.000-07:00"
+const inputTimeLayoutWithoutTimezone string = "2006-01-02T15:04:05.000Z"
 
 func QueryToForumGetThreadsInput(query *fasthttp.Args) (*ForumGetThreadsInput, error) {
 	var err error
@@ -77,9 +78,12 @@ func QueryToForumGetThreadsInput(query *fasthttp.Args) (*ForumGetThreadsInput, e
 
 	startString := string(query.Peek("since"))
 	if startString != "" {
-		forumInput.StartFrom, err = time.Parse(inputTimeLayout, startString)
+		forumInput.StartFrom, err = time.Parse(inputTimeLayoutWithoutTimezone, startString)
 		if err != nil {
-			return nil, err
+			forumInput.StartFrom, err = time.Parse(inputTimeLayoutWithTimezone, startString)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 

@@ -58,9 +58,9 @@ func (userRepo *UserRepo) GetUserByID(userID int) (*entity.User, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	user := entity.User{UserID: userID}
-
 	row := tx.QueryRow(context.Background(), getUserByIDQuery, userID)
+
+	user := entity.User{UserID: userID}
 	err = row.Scan(&user.Username, &user.EMail, &user.FullName, &user.Description)
 	if err != nil {
 		if err == pgx.ErrNoRows {

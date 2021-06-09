@@ -11,6 +11,9 @@ const TransactionCommitError customError = "Could not commit transaction"
 
 const QueryParseError customError = "Could not parse query parameters"
 
+const UnsupportedSortingModeError customError = "Passed sorting mode is incorrect or isn't supported yet"
+const UnsupportedRelatedObjectError customError = "Passed related object is incorrect - can only be user, thread or forum"
+
 const UserNotFoundError customError = "Could not find user"
 const UserConflictError customError = "Could not add user due to fields conflicting"
 const UserConflictNotFoundError customError = "Could not find conflicing users"
@@ -27,4 +30,5 @@ const VoteNotFoundError customError = "Vote could not be found"
 const VoteAlreadyExistsError customError = "Vote already exists"
 
 const PostNotFoundError customError = "Could not find post"
-const ParentNotFoundError customError = "Could not find post's parent in post's thread"
+const ParentNotFoundError customError = "Could not find post's parent"
+const ParentInAnotherThreadError customError = "Post's parent is in different thread"

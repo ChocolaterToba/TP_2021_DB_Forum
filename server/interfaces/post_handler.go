@@ -87,7 +87,30 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 		if err != nil {
 			switch err {
 			case entity.ParentNotFoundError:
-				responseBody, err := json.Marshal(entity.MessageOutput{"Can't find parent post"})
+				// responseBody, err := json.Marshal(entity.MessageOutput{"Can't find parent post"})
+				// if err != nil {
+				// 	ctx.SetStatusCode(http.StatusInternalServerError)
+				// 	return
+				// }
+
+				// ctx.SetStatusCode(http.StatusNotFound)
+				// ctx.SetContentType("application/json")
+				// ctx.SetBody(responseBody)
+				// return
+				fallthrough // API is weird there
+			case entity.ParentInAnotherThreadError:
+				responseBody, err := json.Marshal(entity.MessageOutput{"Parent post is in another thread"})
+				if err != nil {
+					ctx.SetStatusCode(http.StatusInternalServerError)
+					return
+				}
+
+				ctx.SetStatusCode(http.StatusConflict)
+				ctx.SetContentType("application/json")
+				ctx.SetBody(responseBody)
+				return
+			case entity.UserNotFoundError:
+				responseBody, err := json.Marshal(entity.MessageOutput{"Could not find user"})
 				if err != nil {
 					ctx.SetStatusCode(http.StatusInternalServerError)
 					return
@@ -134,6 +157,12 @@ func (postInfo *PostInfo) GetPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	relatedObjects, err := entity.QueryToRelatedObjectsInput(ctx.QueryArgs())
+	if err != nil {
+		ctx.SetStatusCode(http.StatusBadRequest)
+		return
+	}
+
 	post, err := postInfo.postApp.GetPostByID(postID)
 	if err != nil {
 		switch err {
@@ -153,10 +182,9 @@ func (postInfo *PostInfo) GetPost(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
+	postWithRelatives, err := postInfo.postApp.GetPostRelatives(post, relatedObjects.RelatedObjects)
 
-	//TODO: output thread, user etc
-
-	responseBody, err := json.Marshal(post)
+	responseBody, err := json.Marshal(postWithRelatives)
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
@@ -224,6 +252,7 @@ func (postInfo *PostInfo) EditPost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	post.Message = postInput.Message
+	post.IsEdited = true
 
 	//TODO: validate
 

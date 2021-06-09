@@ -17,9 +17,10 @@ func NewPostRepo(postgresDB *pgxpool.Pool) *PostRepo {
 	return &PostRepo{postgresDB}
 }
 
-const createPostQuery string = "INSERT INTO Posts (parentID, creator, message, isEdited, threadID, created)\n" +
-	"values ($1, $2, $3, $4, $5, $6)\n" +
-	"RETURNING PostID"
+const createPostQuery string = "INSERT INTO Posts (parentID, creator, message, isEdited, threadID, created, path)\n" +
+	"values ($1, $2, $3, $4, $5, $6, " +
+	"(SELECT path FROM Posts WHERE postID=$1) || (select currval('posts_postid_seq')::integer))\n" + // Taking parent's path and appending new postID
+	"RETURNING postID"
 const increaseForumPostCountQuery string = "UPDATE Forums\n" +
 	"SET posts_count = posts_count + 1\n" +
 	"WHERE forumname=$1"
@@ -32,14 +33,17 @@ func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
 	defer tx.Rollback(context.Background())
 
 	row := tx.QueryRow(context.Background(), createPostQuery,
-		post.ParentID, post.Creator, post.Message, post.IsEdited, post.ThreadID, post.Created)
+		post.ParentID, post.Creator, post.Message,
+		post.IsEdited, post.ThreadID, post.Created)
 
 	newPostID := 0
 	err = row.Scan(&newPostID)
 	if err != nil {
 		switch {
-		case strings.Contains(err.Error(), "violates foreign key"):
+		case strings.Contains(err.Error(), "violates foreign key constraint \"posts_fk_threadid\""):
 			return -1, entity.ThreadNotFoundError
+		case strings.Contains(err.Error(), "violates foreign key constraint \"posts_fk_creator\""):
+			return -1, entity.UserNotFoundError
 		default:
 			return -1, err
 		}
@@ -72,11 +76,11 @@ func (postRepo *PostRepo) GetPostByID(postID int) (*entity.Post, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	post := entity.Post{PostID: postID}
-
 	row := tx.QueryRow(context.Background(), getPostByIDQuery, postID)
-	err = row.Scan(&post.ParentID, &post.Creator, &post.Message,
-		&post.Forumname, &post.IsEdited, &post.ThreadID, &post.Created)
+
+	post := entity.Post{PostID: postID}
+	err = row.Scan(&post.ParentID, &post.Creator, &post.Message, &post.Forumname,
+		&post.IsEdited, &post.ThreadID, &post.Created)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError
@@ -91,22 +95,32 @@ func (postRepo *PostRepo) GetPostByID(postID int) (*entity.Post, error) {
 	return &post, nil
 }
 
-const getChildPostsByParentIDQuery string = "SELECT post.parentID, post.creator, post.message, " +
-	"thread.forumname, post.isEdited, post.threadID, post.created\n" +
-	"FROM Posts as post\n" +
-	"INNER JOIN Threads as thread\n" +
-	"ON post.threadID = thread.threadID\n" +
-	"WHERE post.parentID=$1"
+const getPostTreeByParentIDQuery string = "SELECT postID, parentID, creator, message, " +
+	"isEdited, threadID, created\n" +
+	"FROM Posts\n" +
+	"WHERE $1=ANY(path)\n" +
+	"ORDER BY path"
 
-func (postRepo *PostRepo) GetChildPosts(parentID int) ([]*entity.Post, error) {
+const getPostTreeByParentIDQueryDesc string = "SELECT postID, parentID, creator, message, " +
+	"isEdited, threadID, created\n" +
+	"FROM Posts\n" +
+	"WHERE $1=ANY(path)\n" +
+	"ORDER BY path DESC"
+
+func (postRepo *PostRepo) GetPostTree(parentID int, desc bool) ([]*entity.Post, error) {
 	tx, err := postRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return nil, entity.TransactionBeginError
 	}
 	defer tx.Rollback(context.Background())
 
-	posts := make([]*entity.Post, 0)
-	rows, err := tx.Query(context.Background(), getChildPostsByParentIDQuery, parentID)
+	var rows pgx.Rows
+	switch desc {
+	case true:
+		rows, err = tx.Query(context.Background(), getPostTreeByParentIDQueryDesc, parentID)
+	case false:
+		rows, err = tx.Query(context.Background(), getPostTreeByParentIDQuery, parentID)
+	}
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, entity.PostNotFoundError
@@ -114,11 +128,12 @@ func (postRepo *PostRepo) GetChildPosts(parentID int) ([]*entity.Post, error) {
 		return nil, err
 	}
 
+	posts := make([]*entity.Post, 0)
 	for rows.Next() {
-		post := entity.Post{ParentID: parentID}
+		post := entity.Post{}
 
-		err = rows.Scan(&post.PostID, &post.Creator,
-			&post.Message, &post.IsEdited, &post.ThreadID, &post.Created) // TODO: add everyone same threadID?
+		err = rows.Scan(&post.PostID, &post.ParentID, &post.Creator, &post.Message,
+			&post.IsEdited, &post.ThreadID, &post.Created)
 		if err != nil {
 			return nil, err
 		}

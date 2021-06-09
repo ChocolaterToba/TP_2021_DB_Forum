@@ -57,8 +57,10 @@ func (threadRepo *ThreadRepo) CreateThread(thread *entity.Thread) (int, string, 
 		switch {
 		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
 			return -1, "", entity.ThreadConflictError
-		case strings.Contains(err.Error(), "violates foreign key"):
-			return -1, "", entity.ForumNotFoundError // TODO: differentiate between user not found and forum not found
+		case strings.Contains(err.Error(), "violates foreign key constraint \"threads_fk_forumname\""):
+			return -1, "", entity.ForumNotFoundError
+		case strings.Contains(err.Error(), "violates foreign key constraint \"threads_fk_creator\""):
+			return -1, "", entity.UserNotFoundError
 		default:
 			return -1, "", err
 		}
@@ -237,6 +239,151 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDFlat(threadID int, limit int, st
 	return posts, nil
 }
 
+const getPostsByThreadIDTreeQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1 AND " +
+	"COALESCE(" +
+	"path>(SELECT path FROM Posts WHERE threadID=$1 AND postID=$2), " +
+	"path>=(SELECT path FROM Posts WHERE threadID=$1 AND postID>$2 ORDER BY postID LIMIT 1), " +
+	"false)\n" +
+	"ORDER BY path\n" +
+	"LIMIT $3"
+
+const getPostsByThreadIDTreeDescQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1 AND " +
+	"COALESCE(" +
+	"path<(SELECT path FROM Posts WHERE threadID=$1 AND postID=$2), " +
+	"path<=(SELECT path FROM Posts WHERE threadID=$1 AND postID<$2 ORDER BY postID DESC LIMIT 1), " +
+	"false)\n" +
+	"ORDER BY path DESC\n" +
+	"LIMIT $3"
+
+const getPostsByThreadIDTreeDescNoStartQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1\n" +
+	"ORDER BY path DESC\n" +
+	"LIMIT $2"
+
+func (threadRepo *ThreadRepo) GetPostsByThreadIDTree(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
+	tx, err := threadRepo.postgresDB.Begin(context.Background())
+	if err != nil {
+		return nil, entity.TransactionBeginError
+	}
+	defer tx.Rollback(context.Background())
+
+	posts := make([]*entity.Post, 0)
+	var rows pgx.Rows
+	switch desc {
+	case true:
+		switch startAfter {
+		case 0:
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDTreeDescNoStartQuery, threadID, limit)
+		default:
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDTreeDescQuery, threadID, startAfter, limit)
+		}
+	case false:
+		rows, err = tx.Query(context.Background(), getPostsByThreadIDTreeQuery, threadID, startAfter, limit)
+	}
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, entity.PostNotFoundError
+		}
+		return nil, err
+	}
+
+	for rows.Next() {
+		post := entity.Post{ThreadID: threadID}
+
+		err = rows.Scan(&post.PostID, &post.ParentID, &post.Creator, &post.Message, &post.IsEdited, &post.Created)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, &post)
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return nil, entity.TransactionCommitError
+	}
+	return posts, nil
+}
+
+const getPostsByThreadIDTopQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1 AND " +
+	"parentID=0 AND " +
+	"COALESCE(" +
+	"postID>(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID=$2), " +
+	"postID>=(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID>$2 ORDER BY postID LIMIT 1), " +
+	"false)\n" +
+	"ORDER BY postID\n" +
+	"LIMIT $3"
+
+const getPostsByThreadIDTopDescQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1 AND " +
+	"parentID=0 AND " +
+	"COALESCE(" +
+	"postID<(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID=$2), " +
+	"postID<=(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID<$2 ORDER BY postID DESC LIMIT 1), " +
+	"false)\n" +
+	"ORDER BY postID DESC\n" +
+	"LIMIT $3"
+
+const getPostsByThreadIDTopDescNoStartQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+	"FROM Posts\n" +
+	"WHERE threadID=$1 AND " +
+	"parentID=0\n" +
+	"ORDER BY postID DESC\n" +
+	"LIMIT $2"
+
+func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
+	tx, err := threadRepo.postgresDB.Begin(context.Background())
+	if err != nil {
+		return nil, entity.TransactionBeginError
+	}
+	defer tx.Rollback(context.Background())
+
+	posts := make([]*entity.Post, 0)
+	var rows pgx.Rows
+	switch desc {
+	case true:
+		switch startAfter {
+		case 0:
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDTopDescNoStartQuery, threadID, limit)
+		default:
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDTopDescQuery, threadID, startAfter, limit)
+		}
+	case false:
+		rows, err = tx.Query(context.Background(), getPostsByThreadIDTopQuery, threadID, startAfter, limit)
+	}
+
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, entity.PostNotFoundError
+		}
+		return nil, err
+	}
+
+	for rows.Next() {
+		post := entity.Post{ThreadID: threadID}
+
+		err = rows.Scan(&post.PostID, &post.ParentID, &post.Creator, &post.Message, &post.IsEdited, &post.Created)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, &post)
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return nil, entity.TransactionCommitError
+	}
+	return posts, nil
+}
+
 const insertVoteByThreadnameQuery string = "INSERT INTO Votes (threadname, username, upvote)\n" +
 	"VALUES ($1, $2, $3)"
 const increaseThreadRatingQuery string = "UPDATE Threads\n" +
@@ -256,8 +403,10 @@ func (threadRepo *ThreadRepo) VoteThreadByThreadname(threadname string, username
 	_, err = tx.Exec(context.Background(), insertVoteByThreadnameQuery, threadname, username, upvote)
 	if err != nil {
 		switch {
-		case strings.Contains(err.Error(), "violates foreign key"):
-			return entity.ThreadNotFoundError // TODO: differentiate between user not found and thread not found
+		case strings.Contains(err.Error(), "violates foreign key constraint \"votes_fk_threadname\""):
+			return entity.ThreadNotFoundError
+		case strings.Contains(err.Error(), "violates foreign key constraint \"votes_fk_username\""):
+			return entity.UserNotFoundError
 		case strings.Contains(err.Error(), "constraint"):
 			return entity.VoteAlreadyExistsError
 		default:

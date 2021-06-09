@@ -44,7 +44,7 @@ func (forumRepo *ForumRepo) CreateForum(forum *entity.ForumCreateInput) (int, st
 		switch {
 		case strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "Duplicate"):
 			return -1, "", entity.ForumConflictError
-		case strings.Contains(err.Error(), "violates foreign key"):
+		case strings.Contains(err.Error(), "violates foreign key constraint \"forums_fk_creator\""):
 			return -1, "", entity.UserNotFoundError
 		default:
 			return -1, "", err
@@ -125,30 +125,51 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 
 const getUsersByForumnameQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"INNER JOIN Posts as posts\n" +
-	"ON posts.creator = users.username\n" +
-	"INNER JOIN Threads as threads\n" +
-	"ON threads.threadID = posts.threadID AND threads.forumname=$1\n" +
-	"WHERE users.username > $2\n" +
+	"WHERE users.username IN (\n" +
+	"SELECT post.creator\n" +
+	"FROM Posts as post\n" +
+	"INNER JOIN Threads as thread\n" +
+	"ON thread.threadID = post.threadID AND thread.forumname=$1\n" +
+	"UNION\n" +
+	"SELECT thread.creator\n" +
+	"FROM Threads as thread\n" +
+	"WHERE thread.forumname=$1\n" +
+	")\n" +
+	"AND users.username > $2\n" +
+	"GROUP BY users.userID\n" + // Users may have duplicated when searching for forum posts
 	"ORDER BY users.username\n" +
-	"LIMIT $"
+	"LIMIT $3"
 
 const getUsersByForumnameDescQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"INNER JOIN Posts as posts\n" +
-	"ON posts.creator = users.username\n" +
-	"INNER JOIN Threads as threads\n" +
-	"ON threads.threadID = posts.threadID AND threads.forumname=$1\n" +
-	"WHERE users.username < $2\n" +
+	"WHERE users.username IN (\n" +
+	"SELECT post.creator\n" +
+	"FROM Posts as post\n" +
+	"INNER JOIN Threads as thread\n" +
+	"ON thread.threadID = post.threadID AND thread.forumname=$1\n" +
+	"UNION\n" +
+	"SELECT thread.creator\n" +
+	"FROM Threads as thread\n" +
+	"WHERE thread.forumname=$1\n" +
+	")\n" +
+	"AND users.username < $2\n" +
+	"GROUP BY users.userID\n" + // Users may have duplicated when searching for forum posts
 	"ORDER BY users.username DESC\n" +
 	"LIMIT $3"
 
 const getUsersByForumnameDescNostartQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"INNER JOIN Posts as posts\n" +
-	"ON posts.creator = users.username\n" +
-	"INNER JOIN Threads as threads\n" +
-	"ON threads.threadID = posts.threadID AND threads.forumname=$1\n" +
+	"WHERE users.username IN (\n" +
+	"SELECT post.creator\n" +
+	"FROM Posts as post\n" +
+	"INNER JOIN Threads as thread\n" +
+	"ON thread.threadID = post.threadID AND thread.forumname=$1\n" +
+	"UNION\n" +
+	"SELECT thread.creator\n" +
+	"FROM Threads as thread\n" +
+	"WHERE thread.forumname=$1\n" +
+	")\n" +
+	"GROUP BY users.userID\n" + // Users may have duplicated when searching for forum posts
 	"ORDER BY users.username DESC\n" +
 	"LIMIT $2"
 

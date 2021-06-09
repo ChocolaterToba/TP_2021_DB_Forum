@@ -1,6 +1,10 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/valyala/fasthttp"
+)
 
 type Post struct {
 	PostID    int       `json:"id"`
@@ -15,4 +19,32 @@ type Post struct {
 
 type PostEditInput struct {
 	Message string `json:"message"`
+}
+
+type RelatedObjectsInput struct {
+	RelatedObjects map[string]bool `json:"related"`
+}
+
+func QueryToRelatedObjectsInput(query *fasthttp.Args) (*RelatedObjectsInput, error) {
+	postInput := new(RelatedObjectsInput)
+
+	relatedObjectsBytes := query.PeekMulti("related")
+	for _, relatedObject := range relatedObjectsBytes {
+		relatedObjectString := string(relatedObject)
+		switch relatedObjectString {
+		case "user", "forum", "thread":
+			postInput.RelatedObjects[relatedObjectString] = true
+		default:
+			return nil, UnsupportedRelatedObjectError
+		}
+	}
+
+	return postInput, nil
+}
+
+type PostFullOutput struct {
+	PostOutput   *Post   `json:"post"`
+	ThreadOutput *Thread `json:"thread,omitempty"`
+	ForumOutput  *Forum  `json:"forum,omitempty"`
+	UserOutput   *User   `json:"author,omitempty"`
 }

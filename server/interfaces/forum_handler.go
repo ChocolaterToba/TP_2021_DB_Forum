@@ -42,7 +42,7 @@ func (forumInfo *ForumInfo) CreateForum(ctx *fasthttp.RequestCtx) {
 			ctx.SetBody(responseBody)
 			return
 		case entity.UserNotFoundError:
-			responseBody, err := json.Marshal(entity.MessageOutput{"Can't find user"})
+			responseBody, err := json.Marshal(entity.MessageOutput{"Could not find user"})
 			if err != nil {
 				ctx.SetStatusCode(http.StatusInternalServerError)
 				return
@@ -125,6 +125,10 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 	}
 
 	forumInput, err := entity.QueryToForumGetUsersInput(ctx.QueryArgs())
+	if err != nil {
+		ctx.SetStatusCode(http.StatusBadRequest)
+		return
+	}
 
 	users, err := forumInfo.forumApp.GetUsersByForumname(forumname, forumInput.Limit, forumInput.StartAfter, forumInput.Desc)
 	if err != nil {
@@ -174,6 +178,10 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 	}
 
 	forumInput, err := entity.QueryToForumGetThreadsInput(ctx.QueryArgs())
+	if err != nil {
+		ctx.SetStatusCode(http.StatusBadRequest)
+		return
+	}
 
 	threads, err := forumInfo.forumApp.GetThreadsByForumname(forumname, forumInput.Limit, forumInput.StartFrom, forumInput.Desc)
 	if err != nil {

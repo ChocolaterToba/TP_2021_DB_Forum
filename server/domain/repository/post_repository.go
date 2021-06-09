@@ -5,6 +5,6 @@ import "dbforum/domain/entity"
 type PostRepositoryInterface interface {
 	CreatePost(post *entity.Post) (int, error)
 	GetPostByID(postID int) (*entity.Post, error)
-	GetChildPosts(parentID int) ([]*entity.Post, error) // Get immediate children of a post
+	GetPostTree(parentID int, desc bool) ([]*entity.Post, error) // Get pots's tree - post itself and all of it's children, sorted by tree level
 	EditPost(post *entity.Post) error
 }

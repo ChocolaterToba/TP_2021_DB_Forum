@@ -7,10 +7,14 @@ import (
 
 type ThreadApp struct {
 	threadRepo repository.ThreadRepositoryInterface
+	postApp    PostAppInterface
 }
 
-func NewThreadApp(threadRepo repository.ThreadRepositoryInterface) *ThreadApp {
-	return &ThreadApp{threadRepo}
+func NewThreadApp(threadRepo repository.ThreadRepositoryInterface, postApp PostAppInterface) *ThreadApp {
+	return &ThreadApp{
+		threadRepo: threadRepo,
+		postApp:    postApp,
+	}
 }
 
 type ThreadAppInterface interface {
@@ -18,8 +22,8 @@ type ThreadAppInterface interface {
 	GetThreadByID(threadID int) (*entity.Thread, error)
 	GetThreadByThreadname(threadname string) (*entity.Thread, error)
 	EditThread(thread *entity.Thread) error
-	GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error)
-	GetPostsByThreadnameFlat(threadname string, limit int, startAfter int, desc bool) ([]*entity.Post, error) //[]*entity.Post if mode is flat, [][]*entity.Post if tree/parent_tree
+	GetPostsByThreadID(threadID int, sortMode string, limit int, startAfter int, desc bool) ([]*entity.Post, error)
+	GetPostsByThreadname(threadname string, sortMode string, limit int, startAfter int, desc bool) ([]*entity.Post, error) //[]*entity.Post if mode is flat, [][]*entity.Post if tree/parent_tree
 	VoteThreadByID(threadID int, username string, voteAmount int) (*entity.Thread, error)
 	VoteThreadByThreadname(threadname string, username string, voteAmount int) (*entity.Thread, error)
 }
@@ -69,15 +73,40 @@ func (threadApp *ThreadApp) GetThreadByThreadname(threadname string) (*entity.Th
 	return threadApp.threadRepo.GetThreadByThreadname(threadname)
 }
 
-// GetPostsByThreadID fetches <limit> posts in specified thread, sorted by creation date, starting after postID = startAfter
+// GetPostsByThreadID fetches posts from specified thread according to sorting mode, starting after postID = startAfter
+// flat - <limit> posts, sort by id first, date of creation second
+// tree - <limit> posts, sort by position in post tree (first comment and all children, second.....)
+// parentTree - tree but <limit> applies to top-level comments, startAfter removes entire tree
 // It returns slice of these posts, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetPostsByThreadIDFlat(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
+func (threadApp *ThreadApp) GetPostsByThreadID(threadID int, sortMode string, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
 	thread, err := threadApp.GetThreadByID(threadID)
 	if err != nil {
 		return nil, err
 	}
 
-	posts, err := threadApp.threadRepo.GetPostsByThreadIDFlat(threadID, limit, startAfter, desc)
+	var posts []*entity.Post
+	switch sortMode {
+	case "flat", "":
+		posts, err = threadApp.threadRepo.GetPostsByThreadIDFlat(threadID, limit, startAfter, desc)
+	case "tree":
+		posts, err = threadApp.threadRepo.GetPostsByThreadIDTree(threadID, limit, startAfter, desc)
+	case "parent_tree":
+		topPosts, err := threadApp.threadRepo.GetPostsByThreadIDTop(threadID, limit, startAfter, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, post := range topPosts {
+			postTree, err := threadApp.postApp.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
+			if err != nil {
+				return nil, err
+			}
+
+			posts = append(posts, postTree...)
+		}
+	default:
+		return nil, entity.UnsupportedSortingModeError
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -88,15 +117,40 @@ func (threadApp *ThreadApp) GetPostsByThreadIDFlat(threadID int, limit int, star
 	return posts, nil
 }
 
-// GetPostsByThreadname fetches all posts in specified thread
+// GetPostsByThreadname fetches posts from specified thread according to sorting mode, starting after postID = startAfter
+// flat - <limit> posts, sort by id first, date of creation second
+// tree - <limit> posts, sort by position in post tree (first comment and all children, second.....)
+// parentTree - tree but <limit> applies to top-level comments, startAfter removes entire tree
 // It returns slice of these posts, nil on success and nil, error on failure
-func (threadApp *ThreadApp) GetPostsByThreadnameFlat(threadname string, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
+func (threadApp *ThreadApp) GetPostsByThreadname(threadname string, sortMode string, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
 	thread, err := threadApp.GetThreadByThreadname(threadname)
 	if err != nil {
 		return nil, err
 	}
 
-	posts, err := threadApp.threadRepo.GetPostsByThreadIDFlat(thread.ThreadID, limit, startAfter, desc)
+	var posts []*entity.Post
+	switch sortMode {
+	case "flat", "":
+		posts, err = threadApp.threadRepo.GetPostsByThreadIDFlat(thread.ThreadID, limit, startAfter, desc)
+	case "tree":
+		posts, err = threadApp.threadRepo.GetPostsByThreadIDTree(thread.ThreadID, limit, startAfter, desc)
+	case "parent_tree":
+		topPosts, err := threadApp.threadRepo.GetPostsByThreadIDTop(thread.ThreadID, limit, startAfter, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, post := range topPosts {
+			postTree, err := threadApp.postApp.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
+			if err != nil {
+				return nil, err
+			}
+
+			posts = append(posts, postTree...)
+		}
+	default:
+		return nil, entity.UnsupportedSortingModeError
+	}
 	if err != nil {
 		return nil, err
 	}
