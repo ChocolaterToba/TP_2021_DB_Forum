@@ -100,19 +100,7 @@ func (threadApp *ThreadApp) GetPostsByThreadID(threadID int, sortMode string, li
 	case "tree":
 		posts, err = threadApp.threadRepo.GetPostsByThreadIDTree(threadID, limit, startAfter, desc)
 	case "parent_tree":
-		topPosts, err := threadApp.threadRepo.GetPostsByThreadIDTop(threadID, limit, startAfter, desc)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, post := range topPosts {
-			postTree, err := threadApp.postRepo.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
-			if err != nil {
-				return nil, err
-			}
-
-			posts = append(posts, postTree...)
-		}
+		posts, err = threadApp.threadRepo.GetPostsByThreadIDParentTree(threadID, limit, startAfter, desc)
 	default:
 		return nil, entity.UnsupportedSortingModeError
 	}
@@ -144,19 +132,7 @@ func (threadApp *ThreadApp) GetPostsByThreadname(threadname string, sortMode str
 	case "tree":
 		posts, err = threadApp.threadRepo.GetPostsByThreadIDTree(thread.ThreadID, limit, startAfter, desc)
 	case "parent_tree":
-		topPosts, err := threadApp.threadRepo.GetPostsByThreadIDTop(thread.ThreadID, limit, startAfter, desc)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, post := range topPosts {
-			postTree, err := threadApp.postRepo.GetPostTree(post.PostID, false) // Trees themselves are sorted ascending
-			if err != nil {
-				return nil, err
-			}
-
-			posts = append(posts, postTree...)
-		}
+		posts, err = threadApp.threadRepo.GetPostsByThreadIDParentTree(thread.ThreadID, limit, startAfter, desc)
 	default:
 		return nil, entity.UnsupportedSortingModeError
 	}

@@ -4,6 +4,7 @@ import (
 	"dbforum/application"
 	"dbforum/domain/entity"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -252,11 +253,19 @@ func (threadInfo *ThreadInfo) GetThreadPosts(ctx *fasthttp.RequestCtx) {
 
 	threadID, err := strconv.Atoi(threadname)
 	var posts []*entity.Post
+	startTime := time.Now()
 	switch err {
 	case nil:
 		posts, err = threadInfo.threadApp.GetPostsByThreadID(threadID, threadInput.SortMode, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
 	default:
 		posts, err = threadInfo.threadApp.GetPostsByThreadname(threadname, threadInput.SortMode, threadInput.Limit, threadInput.StartAfter, threadInput.Desc)
+	}
+
+	if time.Since(startTime) > 100*time.Millisecond {
+		fmt.Println("___________________")
+		fmt.Println(time.Since(startTime))
+		fmt.Println(threadInput)
+		fmt.Println("___________________")
 	}
 
 	if err != nil && err != entity.PostNotFoundError {

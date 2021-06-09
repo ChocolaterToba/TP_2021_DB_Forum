@@ -376,6 +376,13 @@ CREATE INDEX posts_path_idx ON public.posts USING gin (path);
 
 
 --
+-- Name: posts_path_start_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_path_start_idx ON public.posts USING btree ((path[1]));
+
+
+--
 -- Name: posts_threadid_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 

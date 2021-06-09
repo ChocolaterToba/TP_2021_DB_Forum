@@ -315,36 +315,50 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTree(threadID int, limit int, st
 	return posts, nil
 }
 
-const getPostsByThreadIDTopQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+const getPostsByThreadIDPTreeQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
 	"FROM Posts\n" +
-	"WHERE threadID=$1 AND " +
-	"parentID=0 AND " +
-	"COALESCE(" +
-	"postID>(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID=$2), " +
-	"postID>=(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID>$2 ORDER BY postID LIMIT 1), " +
-	"false)\n" +
-	"ORDER BY postID\n" +
-	"LIMIT $3"
+	"WHERE path[1] IN(\n" +
+	"  SELECT postID\n" +
+	"  FROM Posts\n" +
+	"  WHERE threadID=$1 AND " +
+	"  parentID=0 AND " +
+	"  COALESCE(" +
+	"    postID>(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID=$2), " +
+	"    postID>=(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID>$2 ORDER BY postID LIMIT 1), " +
+	"    true" +
+	"  )\n" +
+	"  ORDER BY postID\n" +
+	"  LIMIT $3)\n" +
+	"ORDER BY path"
 
-const getPostsByThreadIDTopDescQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+const getPostsByThreadIDPTreeDescQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
 	"FROM Posts\n" +
-	"WHERE threadID=$1 AND " +
-	"parentID=0 AND " +
-	"COALESCE(" +
-	"postID<(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID=$2), " +
-	"postID<=(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID<$2 ORDER BY postID DESC LIMIT 1), " +
-	"false)\n" +
-	"ORDER BY postID DESC\n" +
-	"LIMIT $3"
+	"WHERE path[1] IN(\n" +
+	"  SELECT postID\n" +
+	"  FROM Posts\n" +
+	"  WHERE threadID=$1 AND " +
+	"  parentID=0 AND " +
+	"  COALESCE(" +
+	"    postID<(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID=$2), " +
+	"    postID<=(SELECT path[1] FROM Posts WHERE threadID=$1 AND postID<$2 ORDER BY postID DESC LIMIT 1), " +
+	"    false" +
+	"  )\n" +
+	"  ORDER BY postID DESC\n" +
+	"  LIMIT $3)\n" +
+	"ORDER BY path[1] DESC, path"
 
-const getPostsByThreadIDTopDescNoStartQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
+const getPostsByThreadIDPTreeDescNoStartQuery string = "SELECT postID, parentID, creator, message, isEdited, created\n" +
 	"FROM Posts\n" +
-	"WHERE threadID=$1 AND " +
-	"parentID=0\n" +
-	"ORDER BY postID DESC\n" +
-	"LIMIT $2"
+	"WHERE path[1] IN(\n" +
+	"  SELECT postID\n" +
+	"  FROM Posts\n" +
+	"  WHERE threadID=$1 AND " +
+	"  parentID=0\n" +
+	"  ORDER BY postID DESC\n" +
+	"  LIMIT $2)\n" +
+	"ORDER BY path[1] DESC, path"
 
-func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
+func (threadRepo *ThreadRepo) GetPostsByThreadIDParentTree(threadID int, limit int, startAfter int, desc bool) ([]*entity.Post, error) {
 	tx, err := threadRepo.postgresDB.Begin(context.Background())
 	if err != nil {
 		return nil, entity.TransactionBeginError
@@ -356,12 +370,12 @@ func (threadRepo *ThreadRepo) GetPostsByThreadIDTop(threadID int, limit int, sta
 	case true:
 		switch startAfter {
 		case 0:
-			rows, err = tx.Query(context.Background(), getPostsByThreadIDTopDescNoStartQuery, threadID, limit)
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDPTreeDescNoStartQuery, threadID, limit)
 		default:
-			rows, err = tx.Query(context.Background(), getPostsByThreadIDTopDescQuery, threadID, startAfter, limit)
+			rows, err = tx.Query(context.Background(), getPostsByThreadIDPTreeDescQuery, threadID, startAfter, limit)
 		}
 	case false:
-		rows, err = tx.Query(context.Background(), getPostsByThreadIDTopQuery, threadID, startAfter, limit)
+		rows, err = tx.Query(context.Background(), getPostsByThreadIDPTreeQuery, threadID, startAfter, limit)
 	}
 	if err != nil {
 		if err == pgx.ErrNoRows {
