@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/fasthttp/router"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -25,6 +26,7 @@ func runServer(addr string) {
 	postgresConnectionString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s",
 		os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_HOST"),
 		os.Getenv("DB_PORT"), os.Getenv("DB_NAME"))
+	time.Sleep(10 * time.Second)
 	postgresConn, err := pgxpool.Connect(context.Background(), postgresConnectionString)
 	if err != nil {
 		log.Fatal("Could not connect to postgres database", zap.String("error", err.Error()))
