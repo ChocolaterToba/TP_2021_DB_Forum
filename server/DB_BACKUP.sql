@@ -98,7 +98,8 @@ CREATE TABLE public.posts (
     isedited boolean DEFAULT false NOT NULL,
     threadid integer NOT NULL,
     created timestamp(3) with time zone DEFAULT now() NOT NULL,
-    path integer[] NOT NULL
+    path integer[] NOT NULL,
+    forumname public.citext NOT NULL
 );
 
 
@@ -369,6 +370,13 @@ CREATE INDEX posts_creator_idx ON public.posts USING btree (creator);
 
 
 --
+-- Name: posts_forumname_creator_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_forumname_creator_idx ON public.posts USING btree (forumname, creator);
+
+
+--
 -- Name: posts_path_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -380,6 +388,13 @@ CREATE INDEX posts_path_idx ON public.posts USING gin (path);
 --
 
 CREATE INDEX posts_path_start_idx ON public.posts USING btree ((path[1]));
+
+
+--
+-- Name: posts_thread_and_post_ids_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX posts_thread_and_post_ids_idx ON public.posts USING btree (threadid, postid);
 
 
 --
@@ -404,6 +419,13 @@ CREATE INDEX threads_creator_idx ON public.threads USING btree (creator);
 
 
 --
+-- Name: threads_forumname_created_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX threads_forumname_created_idx ON public.threads USING btree (forumname, created);
+
+
+--
 -- Name: threads_forumname_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -424,6 +446,14 @@ ALTER TABLE ONLY public.forums
 
 ALTER TABLE ONLY public.posts
     ADD CONSTRAINT posts_fk_creator FOREIGN KEY (creator) REFERENCES public.users(username) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: posts posts_fk_forumname; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.posts
+    ADD CONSTRAINT posts_fk_forumname FOREIGN KEY (forumname) REFERENCES public.forums(forumname) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --

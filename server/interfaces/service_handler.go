@@ -2,8 +2,9 @@ package interfaces
 
 import (
 	"dbforum/application"
-	"encoding/json"
 	"net/http"
+
+	json "github.com/mailru/easyjson"
 
 	"github.com/valyala/fasthttp"
 )

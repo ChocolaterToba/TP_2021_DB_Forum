@@ -18,6 +18,9 @@ type Post struct {
 	Created   time.Time `json:"created"`
 }
 
+//easyjson:json
+type Posts []*Post
+
 type PostEditInput struct {
 	Message string `json:"message"`
 }

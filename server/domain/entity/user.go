@@ -8,6 +8,9 @@ type User struct {
 	EMail       string `json:"email"`
 }
 
+//easyjson:json
+type Users []*User
+
 type UserEditInput struct {
 	FullName    string `json:"fullname"`
 	Description string `json:"about"`

@@ -18,6 +18,9 @@ type Thread struct {
 	Rating     int       `json:"votes"`
 }
 
+//easyjson:json
+type Threads []*Thread
+
 type ThreadCreateInput struct {
 	Threadname string `json:"slug"`
 	Title      string `json:"title"`

@@ -126,53 +126,38 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 	return &forum, nil
 }
 
-const getUsersByForumnameQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
+const getUsersByForumnameQuery string = "SELECT DISTINCT ON (users.username)\n" +
+	"users.userID, users.username, users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"WHERE users.username IN (\n" +
-	"SELECT post.creator\n" +
-	"FROM Posts as post\n" +
-	"INNER JOIN Threads as thread\n" +
-	"ON thread.threadID = post.threadID AND thread.forumname=$1\n" +
-	"UNION\n" +
-	"SELECT thread.creator\n" +
-	"FROM Threads as thread\n" +
-	"WHERE thread.forumname=$1\n" +
-	")\n" +
-	"AND users.username > $2\n" +
-	"GROUP BY users.userID\n" + // Users may have duplicated when searching for forum posts
+	"LEFT JOIN Posts as post\n" +
+	"ON users.username = post.creator and post.forumname = $1\n" +
+	"LEFT JOIN Threads as thread\n" +
+	"ON users.username = thread.creator and thread.forumname = $1\n" +
+	"WHERE (post.forumname IS NOT NULL OR thread.forumname IS NOT NULL) AND " +
+	"users.username > $2\n" +
 	"ORDER BY users.username\n" +
 	"LIMIT $3"
 
-const getUsersByForumnameDescQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
+const getUsersByForumnameDescQuery string = "SELECT DISTINCT ON (users.username)\n" +
+	"users.userID, users.username, users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"WHERE users.username IN (\n" +
-	"SELECT post.creator\n" +
-	"FROM Posts as post\n" +
-	"INNER JOIN Threads as thread\n" +
-	"ON thread.threadID = post.threadID AND thread.forumname=$1\n" +
-	"UNION\n" +
-	"SELECT thread.creator\n" +
-	"FROM Threads as thread\n" +
-	"WHERE thread.forumname=$1\n" +
-	")\n" +
-	"AND users.username < $2\n" +
-	"GROUP BY users.userID\n" + // Users may have duplicated when searching for forum posts
+	"LEFT JOIN Posts as post\n" +
+	"ON users.username = post.creator and post.forumname = $1\n" +
+	"LEFT JOIN Threads as thread\n" +
+	"ON users.username = thread.creator and thread.forumname = $1\n" +
+	"WHERE (post.forumname IS NOT NULL OR thread.forumname IS NOT NULL) AND " +
+	"users.username < $2\n" +
 	"ORDER BY users.username DESC\n" +
 	"LIMIT $3"
 
-const getUsersByForumnameDescNostartQuery string = "SELECT users.userID, users.username, users.email, users.fullName, users.description\n" +
+const getUsersByForumnameDescNostartQuery string = "SELECT DISTINCT ON (users.username)\n" +
+	"users.userID, users.username, users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"WHERE users.username IN (\n" +
-	"SELECT post.creator\n" +
-	"FROM Posts as post\n" +
-	"INNER JOIN Threads as thread\n" +
-	"ON thread.threadID = post.threadID AND thread.forumname=$1\n" +
-	"UNION\n" +
-	"SELECT thread.creator\n" +
-	"FROM Threads as thread\n" +
-	"WHERE thread.forumname=$1\n" +
-	")\n" +
-	"GROUP BY users.userID\n" + // Users may have duplicated when searching for forum posts
+	"LEFT JOIN Posts as post\n" +
+	"ON users.username = post.creator and post.forumname = $1\n" +
+	"LEFT JOIN Threads as thread\n" +
+	"ON users.username = thread.creator and thread.forumname = $1\n" +
+	"WHERE post.forumname IS NOT NULL OR thread.forumname IS NOT NULL\n" +
 	"ORDER BY users.username DESC\n" +
 	"LIMIT $2"
 
@@ -196,6 +181,7 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string, limit int, sta
 		rows, err = tx.Query(context.Background(), getUsersByForumnameQuery, forumname, startAfter, limit)
 	}
 	if err != nil {
+		fmt.Println(err)
 		if err == pgx.ErrNoRows {
 			return nil, entity.UserNotFoundError
 		}

@@ -3,8 +3,9 @@ package interfaces
 import (
 	"dbforum/application"
 	"dbforum/domain/entity"
-	"encoding/json"
 	"net/http"
+
+	json "github.com/mailru/easyjson"
 
 	"github.com/valyala/fasthttp"
 )
@@ -154,7 +155,7 @@ func (forumInfo *ForumInfo) GetForumUsers(ctx *fasthttp.RequestCtx) {
 		users = make([]*entity.User, 0) // So that it marshalls as [] and not nil
 	}
 
-	responseBody, err := json.Marshal(users)
+	responseBody, err := json.Marshal(entity.Users(users))
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
@@ -207,7 +208,7 @@ func (forumInfo *ForumInfo) GetForumThreads(ctx *fasthttp.RequestCtx) {
 		threads = make([]*entity.Thread, 0) // So that it marshalls as [] and not nil
 	}
 
-	responseBody, err := json.Marshal(threads)
+	responseBody, err := json.Marshal(entity.Threads(threads))
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return

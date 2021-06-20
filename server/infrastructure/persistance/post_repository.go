@@ -17,8 +17,8 @@ func NewPostRepo(postgresDB *pgxpool.Pool) *PostRepo {
 	return &PostRepo{postgresDB}
 }
 
-const createPostQuery string = "INSERT INTO Posts (parentID, creator, message, isEdited, threadID, created, path)\n" +
-	"values ($1, $2, $3, $4, $5, $6, " +
+const createPostQuery string = "INSERT INTO Posts (parentID, creator, message, isEdited, threadID, forumname, created, path)\n" +
+	"values ($1, $2, $3, $4, $5, $6, $7, " +
 	"(SELECT path FROM Posts WHERE postID=$1) || (select currval('posts_postid_seq')::integer))\n" + // Taking parent's path and appending new postID
 	"RETURNING postID"
 const increaseForumPostCountQuery string = "UPDATE Forums\n" +
@@ -34,7 +34,7 @@ func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
 
 	row := tx.QueryRow(context.Background(), createPostQuery,
 		post.ParentID, post.Creator, post.Message,
-		post.IsEdited, post.ThreadID, post.Created)
+		post.IsEdited, post.ThreadID, post.Forumname, post.Created)
 
 	newPostID := 0
 	err = row.Scan(&newPostID)

@@ -3,8 +3,9 @@ package interfaces
 import (
 	"dbforum/application"
 	"dbforum/domain/entity"
-	"encoding/json"
 	"net/http"
+
+	json "github.com/mailru/easyjson"
 
 	"github.com/valyala/fasthttp"
 )
@@ -41,7 +42,8 @@ func (userInfo *UserInfo) CreateUser(ctx *fasthttp.RequestCtx) {
 	if err != nil {
 		switch err {
 		case entity.UserConflictError:
-			responseBody, err := json.Marshal(createUserInfo.([]*entity.User))
+			users := createUserInfo.([]*entity.User)
+			responseBody, err := json.Marshal(entity.Users(users))
 			if err != nil {
 				ctx.SetStatusCode(http.StatusInternalServerError)
 				return

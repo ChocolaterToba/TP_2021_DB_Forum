@@ -3,10 +3,11 @@ package interfaces
 import (
 	"dbforum/application"
 	"dbforum/domain/entity"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
+
+	json "github.com/mailru/easyjson"
 
 	"github.com/valyala/fasthttp"
 )
@@ -35,7 +36,7 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	posts := make([]*entity.Post, 0)
+	posts := entity.Posts(make([]*entity.Post, 0))
 
 	err := json.Unmarshal(ctx.Request.Body(), &posts)
 	if err != nil {
@@ -129,7 +130,7 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 		posts[i] = newPost
 	}
 
-	responseBody, err := json.Marshal(posts)
+	responseBody, err := json.Marshal(entity.Posts(posts))
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
