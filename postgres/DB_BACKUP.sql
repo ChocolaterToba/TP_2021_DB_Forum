@@ -363,13 +363,6 @@ CREATE INDEX forums_creator_idx ON public.forums USING btree (creator);
 
 
 --
--- Name: posts_creator_idx; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX posts_creator_idx ON public.posts USING btree (creator);
-
-
---
 -- Name: posts_forumname_creator_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -377,24 +370,10 @@ CREATE INDEX posts_forumname_creator_idx ON public.posts USING btree (forumname,
 
 
 --
--- Name: posts_path_idx; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX posts_path_idx ON public.posts USING gin (path);
-
-
---
 -- Name: posts_path_start_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX posts_path_start_idx ON public.posts USING btree ((path[1]));
-
-
---
--- Name: posts_thread_and_post_ids_idx; Type: INDEX; Schema: public; Owner: postgres
---
-
-CREATE INDEX posts_thread_and_post_ids_idx ON public.posts USING btree (threadid, postid);
 
 
 --

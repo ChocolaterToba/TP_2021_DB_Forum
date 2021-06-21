@@ -107,10 +107,8 @@ func (postRepo *PostRepo) CreatePosts(posts []*entity.Post) ([]int, error) {
 }
 
 const getPostByIDQuery string = "SELECT post.parentID, post.creator, post.message, " +
-	"thread.forumname, post.isEdited, post.threadID, post.created\n" +
+	"post.forumname, post.isEdited, post.threadID, post.created\n" +
 	"FROM Posts as post\n" +
-	"INNER JOIN Threads as thread\n" +
-	"ON post.threadID = thread.threadID\n" +
 	"WHERE post.postID=$1"
 
 func (postRepo *PostRepo) GetPostByID(postID int) (*entity.Post, error) {

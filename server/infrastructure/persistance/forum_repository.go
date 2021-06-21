@@ -70,7 +70,8 @@ func (forumRepo *ForumRepo) CreateForum(forum *entity.ForumCreateInput) (int, st
 }
 
 const getForumByIDQuery string = "SELECT title, forumname, creator, posts_count, threads_count\n" +
-	"FROM Forums WHERE forumID=$1"
+	"FROM Forums\n" +
+	"WHERE forumID=$1"
 
 func (forumRepo *ForumRepo) GetForumByID(forumID int) (*entity.Forum, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())
