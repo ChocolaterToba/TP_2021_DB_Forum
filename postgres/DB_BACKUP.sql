@@ -405,6 +405,13 @@ CREATE INDEX threads_forumname_created_idx ON public.threads USING btree (forumn
 
 
 --
+-- Name: threads_forumname_creator_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX threads_forumname_creator_idx ON public.threads USING btree (forumname, creator);
+
+
+--
 -- Name: threads_forumname_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 

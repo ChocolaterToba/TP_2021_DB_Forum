@@ -136,21 +136,16 @@ func (postApp *PostApp) GetPostRelatives(post *entity.Post, relatives map[string
 			return nil, err
 		}
 	}
-	if relatives["thread"] || relatives["forum"] {
-		thread, err := postApp.threadRepo.GetThreadByID(post.ThreadID)
+	if relatives["thread"] {
+		output.ThreadOutput, err = postApp.threadRepo.GetThreadByID(post.ThreadID)
 		if err != nil {
 			return nil, err
 		}
-
-		if relatives["thread"] {
-			output.ThreadOutput = thread
-		}
-
-		if relatives["forum"] {
-			output.ForumOutput, err = postApp.forumRepo.GetForumByForumname(thread.Forumname)
-			if err != nil {
-				return nil, err
-			}
+	}
+	if relatives["forum"] {
+		output.ForumOutput, err = postApp.forumRepo.GetForumByForumname(post.Forumname)
+		if err != nil {
+			return nil, err
 		}
 	}
 

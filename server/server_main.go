@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/fasthttp/router"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -15,6 +16,19 @@ import (
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 )
+
+func loggerMid(req fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
+		begin := time.Now()
+		req(ctx)
+		end := time.Now()
+		if end.Sub(begin) > 90*time.Millisecond {
+			log.Printf("%s - %s",
+				string(ctx.Request.URI().FullURI()),
+				end.Sub(begin).String())
+		}
+	})
+}
 
 func runServer(addr string) {
 	err := godotenv.Load(".env")
@@ -75,7 +89,7 @@ func runServer(addr string) {
 	router.POST(prefix+"/service/clear", serviceInfo.ClearForum)
 
 	fmt.Printf("Starting server at localhost%s\n", addr)
-	fasthttp.ListenAndServe(addr, router.Handler)
+	fasthttp.ListenAndServe(addr, loggerMid(router.Handler))
 }
 
 func main() {

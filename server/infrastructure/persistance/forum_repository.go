@@ -3,7 +3,6 @@ package persistance
 import (
 	"context"
 	"dbforum/domain/entity"
-	"fmt"
 	"strings"
 	"time"
 
@@ -127,40 +126,77 @@ func (forumRepo *ForumRepo) GetForumByForumname(forumname string) (*entity.Forum
 	return &forum, nil
 }
 
-const getUsersByForumnameQuery string = "SELECT DISTINCT ON (users.username)\n" +
-	"users.userID, users.username, users.email, users.fullName, users.description\n" +
+const getUsersByForumnameQuery string = "SELECT users.userID, users.username, " +
+	"users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"LEFT JOIN Posts as post\n" +
-	"ON users.username = post.creator and post.forumname = $1\n" +
-	"LEFT JOIN Threads as thread\n" +
-	"ON users.username = thread.creator and thread.forumname = $1\n" +
-	"WHERE (post.forumname IS NOT NULL OR thread.forumname IS NOT NULL) AND " +
-	"users.username > $2\n" +
-	"ORDER BY users.username\n" +
-	"LIMIT $3"
+	"INNER JOIN (\n" +
+	"	SELECT DISTINCT creator\n" +
+	"	FROM (" +
+	"		(SELECT distinct post.creator\n" +
+	"		FROM Posts as post\n" +
+	"		WHERE post.forumname = $1 AND post.creator > $2\n" +
+	"		ORDER BY post.creator\n" +
+	"		LIMIT $3 * 2)\n" +
+	"		UNION ALL\n" +
+	"		(SELECT distinct thread.creator\n" +
+	"		FROM Threads as thread\n" +
+	"		WHERE thread.forumname = $1 AND thread.creator > $2\n" +
+	"		ORDER BY thread.creator\n" +
+	"		LIMIT $3 * 2)\n" +
+	"	) as creators_full\n" +
+	"	ORDER BY creator\n" +
+	"	LIMIT $3\n" +
+	") as creators\n" +
+	"ON users.username = creators.creator\n" +
+	"ORDER BY users.username"
 
-const getUsersByForumnameDescQuery string = "SELECT DISTINCT ON (users.username)\n" +
-	"users.userID, users.username, users.email, users.fullName, users.description\n" +
+const getUsersByForumnameDescQuery string = "SELECT users.userID, users.username, " +
+	"users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"LEFT JOIN Posts as post\n" +
-	"ON users.username = post.creator and post.forumname = $1\n" +
-	"LEFT JOIN Threads as thread\n" +
-	"ON users.username = thread.creator and thread.forumname = $1\n" +
-	"WHERE (post.forumname IS NOT NULL OR thread.forumname IS NOT NULL) AND " +
-	"users.username < $2\n" +
-	"ORDER BY users.username DESC\n" +
-	"LIMIT $3"
+	"INNER JOIN (\n" +
+	"	SELECT DISTINCT creator\n" +
+	"	FROM (" +
+	"		(SELECT distinct post.creator\n" +
+	"		FROM Posts as post\n" +
+	"		WHERE post.forumname = $1 AND post.creator < $2\n" +
+	"		ORDER BY post.creator DESC\n" +
+	"		LIMIT $3 * 2)\n" +
+	"		UNION ALL\n" +
+	"		(SELECT distinct thread.creator\n" +
+	"		FROM Threads as thread\n" +
+	"		WHERE thread.forumname = $1 AND thread.creator < $2\n" +
+	"		ORDER BY thread.creator DESC\n" +
+	"		LIMIT $3 * 2)\n" +
+	"	) as creators_full\n" +
+	"	ORDER BY creator DESC\n" +
+	"	LIMIT $3\n" +
+	") as creators\n" +
+	"ON users.username = creators.creator\n" +
+	"ORDER BY users.username DESC"
 
-const getUsersByForumnameDescNostartQuery string = "SELECT DISTINCT ON (users.username)\n" +
-	"users.userID, users.username, users.email, users.fullName, users.description\n" +
+const getUsersByForumnameDescNostartQuery string = "SELECT users.userID, users.username, " +
+	"users.email, users.fullName, users.description\n" +
 	"FROM Users as users\n" +
-	"LEFT JOIN Posts as post\n" +
-	"ON users.username = post.creator and post.forumname = $1\n" +
-	"LEFT JOIN Threads as thread\n" +
-	"ON users.username = thread.creator and thread.forumname = $1\n" +
-	"WHERE post.forumname IS NOT NULL OR thread.forumname IS NOT NULL\n" +
-	"ORDER BY users.username DESC\n" +
-	"LIMIT $2"
+	"INNER JOIN (\n" +
+	"	SELECT DISTINCT creator\n" +
+	"	FROM (" +
+	"		(SELECT distinct post.creator\n" +
+	"		FROM Posts as post\n" +
+	"		WHERE post.forumname = $1\n" +
+	"		ORDER BY post.creator DESC\n" +
+	"		LIMIT $2 * 2)\n" +
+	"		UNION ALL\n" +
+	"		(SELECT distinct thread.creator\n" +
+	"		FROM Threads as thread\n" +
+	"		WHERE thread.forumname = $1\n" +
+	"		ORDER BY thread.creator DESC\n" +
+	"		LIMIT $2 * 2)\n" +
+	"	) as creators_full\n" +
+	"	ORDER BY creator DESC\n" +
+	"	LIMIT $2\n" +
+	") as creators\n" +
+	"ON users.username = creators.creator\n" +
+	"ORDER BY users.username DESC"
 
 func (forumRepo *ForumRepo) GetUsersByForumname(forumname string, limit int, startAfter string, desc bool) ([]*entity.User, error) {
 	tx, err := forumRepo.postgresDB.Begin(context.Background())
@@ -182,7 +218,6 @@ func (forumRepo *ForumRepo) GetUsersByForumname(forumname string, limit int, sta
 		rows, err = tx.Query(context.Background(), getUsersByForumnameQuery, forumname, startAfter, limit)
 	}
 	if err != nil {
-		fmt.Println(err)
 		if err == pgx.ErrNoRows {
 			return nil, entity.UserNotFoundError
 		}
@@ -259,7 +294,6 @@ func (forumRepo *ForumRepo) GetThreadsByForumname(forumname string, limit int, s
 		err = rows.Scan(&thread.ThreadID, &threadname, &thread.Title, &thread.Creator,
 			&thread.Forumname, &thread.Message, &thread.Created, &thread.Rating)
 		if err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 		if threadname.Status != pgtype.Null {
