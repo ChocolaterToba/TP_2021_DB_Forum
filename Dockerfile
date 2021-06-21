@@ -26,7 +26,6 @@ RUN /etc/init.d/postgresql start &&\
     psql -h localhost -d forum -U mikhail -p 5432 -a -q -f ./DB_BACKUP.sql &&\
     /etc/init.d/postgresql stop
 
-EXPOSE 5432/tcp
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
 COPY --from=goserver /forum/server .

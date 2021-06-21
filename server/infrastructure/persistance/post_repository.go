@@ -22,7 +22,7 @@ const createPostQuery string = "INSERT INTO Posts (parentID, creator, message, i
 	"(SELECT path FROM Posts WHERE postID=$1) || (select currval('posts_postid_seq')::integer))\n" + // Taking parent's path and appending new postID
 	"RETURNING postID"
 const increaseForumPostCountQuery string = "UPDATE Forums\n" +
-	"SET posts_count = posts_count + 1\n" +
+	"SET posts_count = posts_count + $2\n" +
 	"WHERE forumname=$1"
 
 func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
@@ -49,7 +49,7 @@ func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
 		}
 	}
 
-	_, err = tx.Exec(context.Background(), increaseForumPostCountQuery, post.Forumname)
+	_, err = tx.Exec(context.Background(), increaseForumPostCountQuery, post.Forumname, 1)
 	if err != nil {
 		return -1, err
 	}
@@ -62,7 +62,7 @@ func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
 	return newPostID, nil
 }
 
-func (postRepo *PostRepo) CreatePosts(posts []*entity.Post) ([]int, error) {
+func (postRepo *PostRepo) CreatePosts(posts []*entity.Post, forumname string) ([]int, error) {
 	if len(posts) == 0 {
 		return nil, nil
 	}
@@ -90,12 +90,11 @@ func (postRepo *PostRepo) CreatePosts(posts []*entity.Post) ([]int, error) {
 				return nil, err
 			}
 		}
+	}
 
-		// TODO: move out of cycle?
-		_, err = tx.Exec(context.Background(), increaseForumPostCountQuery, post.Forumname)
-		if err != nil {
-			return nil, err
-		}
+	_, err = tx.Exec(context.Background(), increaseForumPostCountQuery, forumname, len(posts))
+	if err != nil {
+		return nil, err
 	}
 
 	err = tx.Commit(context.Background())

@@ -28,7 +28,7 @@ func NewPostApp(postRepo repository.PostRepositoryInterface, userRepo repository
 
 type PostAppInterface interface {
 	CreatePost(post *entity.Post) (*entity.Post, error)
-	CreatePosts(posts []*entity.Post, thread *entity.Thread) ([]*entity.Post, error)
+	CreatePosts(posts []*entity.Post, thread *entity.Thread) ([]*entity.Post, error) // Create posts (must be from same thread)
 	GetPostByID(postID int) (*entity.Post, error)
 	GetPostRelatives(post *entity.Post, relatives map[string]bool) (*entity.PostFullOutput, error)
 	GetPostTree(postID int, desc bool) ([]*entity.Post, error)
@@ -95,7 +95,7 @@ func (postApp *PostApp) CreatePosts(posts []*entity.Post, thread *entity.Thread)
 		}
 	}
 
-	postIDs, err := postApp.postRepo.CreatePosts(posts)
+	postIDs, err := postApp.postRepo.CreatePosts(posts, thread.Forumname)
 	if err != nil || len(postIDs) != len(posts) {
 		return nil, err
 	}
