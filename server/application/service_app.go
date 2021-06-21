@@ -7,16 +7,18 @@ import (
 )
 
 type ServiceApp struct {
-	serviceRepo repository.ServiceRepositoryInterface
-	stats       *entity.StatsInfo
-	mu          sync.Mutex
+	serviceRepo   repository.ServiceRepositoryInterface
+	stats         *entity.StatsInfo
+	postsModified int
+	mu            sync.Mutex
 }
 
 func NewServiceApp(serviceRepo repository.ServiceRepositoryInterface) *ServiceApp {
 	result := &ServiceApp{
-		serviceRepo: serviceRepo,
-		stats:       new(entity.StatsInfo),
-		mu:          sync.Mutex{},
+		serviceRepo:   serviceRepo,
+		stats:         new(entity.StatsInfo),
+		postsModified: 0,
+		mu:            sync.Mutex{},
 	}
 	result.GetStatsInit()
 	return result
@@ -71,6 +73,7 @@ func (serviceApp *ServiceApp) TruncateAll() error {
 	serviceApp.stats.ForumsCount = 0
 	serviceApp.stats.ThreadsCount = 0
 	serviceApp.stats.PostsCount = 0
+	serviceApp.postsModified = 0
 	serviceApp.mu.Unlock()
 	return nil
 }
@@ -93,6 +96,12 @@ func (serviceApp *ServiceApp) IncrementThreadsCount() error {
 	serviceApp.mu.Unlock()
 	return nil
 }
+func abs(number int) int {
+	if number < 0 {
+		return -number
+	}
+	return number
+}
 func (serviceApp *ServiceApp) IncrementPostsCount(diff int) error {
 	if diff <= 0 {
 		return entity.InvalidIncrementValueError
@@ -100,6 +109,12 @@ func (serviceApp *ServiceApp) IncrementPostsCount(diff int) error {
 
 	serviceApp.mu.Lock()
 	serviceApp.stats.PostsCount += diff
+	serviceApp.postsModified += abs(diff)
+	if serviceApp.postsModified > 100000 { // Ugly, I know
+		serviceApp.postsModified = 0
+		go serviceApp.serviceRepo.VacuumPosts()
+	}
 	serviceApp.mu.Unlock()
+
 	return nil
 }

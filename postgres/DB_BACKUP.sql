@@ -43,7 +43,6 @@ CREATE EXTENSION IF NOT EXISTS tablefunc WITH SCHEMA public;
 
 COMMENT ON EXTENSION tablefunc IS 'functions that manipulate whole tables, including crosstab';
 
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -101,7 +100,6 @@ CREATE TABLE public.posts (
     path integer[] NOT NULL,
     forumname public.citext NOT NULL
 );
-
 
 ALTER TABLE public.posts OWNER TO postgres;
 
@@ -387,7 +385,7 @@ CREATE INDEX posts_threadid_idx ON public.posts USING btree (threadid);
 -- Name: posts_tree_search_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
-CREATE INDEX posts_tree_search_idx ON public.posts USING btree (threadid, path);
+CREATE UNIQUE INDEX posts_tree_search_idx ON public.posts USING btree (threadid, path);
 
 
 --

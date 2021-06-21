@@ -69,3 +69,14 @@ func (serviceRepo *ServiceRepo) TruncateAll() error {
 
 	return nil
 }
+
+const vacuumPostsQuery string = "VACUUM (VERBOSE,ANALYZE) posts"
+
+func (serviceRepo *ServiceRepo) VacuumPosts() error {
+	_, err := serviceRepo.postgresDB.Exec(context.Background(), vacuumPostsQuery)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
