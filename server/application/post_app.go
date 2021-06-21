@@ -28,6 +28,7 @@ func NewPostApp(postRepo repository.PostRepositoryInterface, userRepo repository
 
 type PostAppInterface interface {
 	CreatePost(post *entity.Post) (*entity.Post, error)
+	CreatePosts(posts []*entity.Post, thread *entity.Thread) ([]*entity.Post, error)
 	GetPostByID(postID int) (*entity.Post, error)
 	GetPostRelatives(post *entity.Post, relatives map[string]bool) (*entity.PostFullOutput, error)
 	GetPostTree(postID int, desc bool) ([]*entity.Post, error)
@@ -35,7 +36,7 @@ type PostAppInterface interface {
 }
 
 // CreatePost adds new post to database with passed fields
-// It returns created port and nil on success, any number and error on failure
+// It returns created post and nil on success, nil and error on failure
 func (postApp *PostApp) CreatePost(post *entity.Post) (*entity.Post, error) {
 	if post.ParentID != 0 {
 		//Checking if parent post exists in same thread
@@ -58,11 +59,56 @@ func (postApp *PostApp) CreatePost(post *entity.Post) (*entity.Post, error) {
 		return nil, err
 	}
 
-	err = postApp.serviceApp.IncrementPostsCount()
+	err = postApp.serviceApp.IncrementPostsCount(1)
 	if err != nil {
 		return nil, err
 	}
 	return post, nil
+}
+
+// CreatePosts adds new posts from passed thread to database
+// It returns created posts and nil on success, nil and error on failure
+func (postApp *PostApp) CreatePosts(posts []*entity.Post, thread *entity.Thread) ([]*entity.Post, error) {
+	if len(posts) == 0 {
+		return posts, nil
+	}
+
+	var err error
+
+	creationDate := time.Now().Truncate(time.Millisecond) // Creation time is same for all posts where it's not specified
+	for i, post := range posts {
+		posts[i].ThreadID = thread.ThreadID
+		posts[i].Forumname = thread.Forumname
+		if posts[i].Created == (time.Time{}) {
+			posts[i].Created = creationDate
+		}
+
+		if post.ParentID != 0 {
+			//Checking if parent post exists in same thread
+			parentPost, err := postApp.GetPostByID(post.ParentID)
+			if err != nil {
+				return nil, entity.ParentNotFoundError
+			}
+			if parentPost.ThreadID != post.ThreadID {
+				return nil, entity.ParentInAnotherThreadError
+			}
+		}
+	}
+
+	postIDs, err := postApp.postRepo.CreatePosts(posts)
+	if err != nil || len(postIDs) != len(posts) {
+		return nil, err
+	}
+
+	for i, id := range postIDs {
+		posts[i].PostID = id
+	}
+
+	err = postApp.serviceApp.IncrementPostsCount(len(posts))
+	if err != nil {
+		return nil, err
+	}
+	return posts, nil
 }
 
 // EditPost saves post to database with passed fields

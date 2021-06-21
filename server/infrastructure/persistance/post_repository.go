@@ -62,6 +62,50 @@ func (postRepo *PostRepo) CreatePost(post *entity.Post) (int, error) {
 	return newPostID, nil
 }
 
+func (postRepo *PostRepo) CreatePosts(posts []*entity.Post) ([]int, error) {
+	if len(posts) == 0 {
+		return nil, nil
+	}
+
+	tx, err := postRepo.postgresDB.Begin(context.Background())
+	if err != nil {
+		return nil, entity.TransactionBeginError
+	}
+	defer tx.Rollback(context.Background())
+
+	postIDs := make([]int, len(posts))
+	for i, post := range posts {
+		row := tx.QueryRow(context.Background(), createPostQuery,
+			post.ParentID, post.Creator, post.Message,
+			post.IsEdited, post.ThreadID, post.Forumname, post.Created)
+
+		err = row.Scan(&postIDs[i])
+		if err != nil {
+			switch {
+			case strings.Contains(err.Error(), "violates foreign key constraint \"posts_fk_threadid\""):
+				return nil, entity.ThreadNotFoundError
+			case strings.Contains(err.Error(), "violates foreign key constraint \"posts_fk_creator\""):
+				return nil, entity.UserNotFoundError
+			default:
+				return nil, err
+			}
+		}
+
+		// TODO: move out of cycle?
+		_, err = tx.Exec(context.Background(), increaseForumPostCountQuery, post.Forumname)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return nil, entity.TransactionCommitError
+	}
+
+	return postIDs, nil
+}
+
 const getPostByIDQuery string = "SELECT post.parentID, post.creator, post.message, " +
 	"thread.forumname, post.isEdited, post.threadID, post.created\n" +
 	"FROM Posts as post\n" +

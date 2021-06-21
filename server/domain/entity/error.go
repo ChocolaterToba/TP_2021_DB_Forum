@@ -32,3 +32,5 @@ const VoteAlreadyExistsError customError = "Vote already exists"
 const PostNotFoundError customError = "Could not find post"
 const ParentNotFoundError customError = "Could not find post's parent"
 const ParentInAnotherThreadError customError = "Post's parent is in different thread"
+
+const InvalidIncrementValueError customError = "Cannot increment by non-positive value"

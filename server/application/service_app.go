@@ -28,7 +28,7 @@ type ServiceAppInterface interface {
 	IncrementUsersCount() error
 	IncrementForumsCount() error
 	IncrementThreadsCount() error
-	IncrementPostsCount() error
+	IncrementPostsCount(diff int) error
 	TruncateAll() error // Clear entire database
 }
 
@@ -93,9 +93,13 @@ func (serviceApp *ServiceApp) IncrementThreadsCount() error {
 	serviceApp.mu.Unlock()
 	return nil
 }
-func (serviceApp *ServiceApp) IncrementPostsCount() error {
+func (serviceApp *ServiceApp) IncrementPostsCount(diff int) error {
+	if diff <= 0 {
+		return entity.InvalidIncrementValueError
+	}
+
 	serviceApp.mu.Lock()
-	serviceApp.stats.PostsCount++
+	serviceApp.stats.PostsCount += diff
 	serviceApp.mu.Unlock()
 	return nil
 }

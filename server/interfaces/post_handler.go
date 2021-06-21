@@ -3,9 +3,9 @@ package interfaces
 import (
 	"dbforum/application"
 	"dbforum/domain/entity"
+	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	json "github.com/mailru/easyjson"
 
@@ -72,65 +72,52 @@ func (postInfo *PostInfo) CreatePost(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	creationDate := time.Now().Truncate(time.Millisecond) // Creation time is same for all posts where it's not specified
-	for i := range posts {
-		posts[i].ThreadID = thread.ThreadID
-		posts[i].Forumname = thread.Forumname
-		if posts[i].Created == (time.Time{}) {
-			posts[i].Created = creationDate
-		}
-	}
-
 	//TODO: validate
+	newPosts, err := postInfo.postApp.CreatePosts(posts, thread)
+	if err != nil {
+		switch err {
+		case entity.ParentNotFoundError:
+			// responseBody, err := json.Marshal(entity.MessageOutput{"Can't find parent post"})
+			// if err != nil {
+			// 	ctx.SetStatusCode(http.StatusInternalServerError)
+			// 	return
+			// }
 
-	for i, postInput := range posts {
-		newPost, err := postInfo.postApp.CreatePost(postInput)
-		if err != nil {
-			switch err {
-			case entity.ParentNotFoundError:
-				// responseBody, err := json.Marshal(entity.MessageOutput{"Can't find parent post"})
-				// if err != nil {
-				// 	ctx.SetStatusCode(http.StatusInternalServerError)
-				// 	return
-				// }
-
-				// ctx.SetStatusCode(http.StatusNotFound)
-				// ctx.SetContentType("application/json")
-				// ctx.SetBody(responseBody)
-				// return
-				fallthrough // API is weird there
-			case entity.ParentInAnotherThreadError:
-				responseBody, err := json.Marshal(entity.MessageOutput{"Parent post is in another thread"})
-				if err != nil {
-					ctx.SetStatusCode(http.StatusInternalServerError)
-					return
-				}
-
-				ctx.SetStatusCode(http.StatusConflict)
-				ctx.SetContentType("application/json")
-				ctx.SetBody(responseBody)
-				return
-			case entity.UserNotFoundError:
-				responseBody, err := json.Marshal(entity.MessageOutput{"Could not find user"})
-				if err != nil {
-					ctx.SetStatusCode(http.StatusInternalServerError)
-					return
-				}
-
-				ctx.SetStatusCode(http.StatusNotFound)
-				ctx.SetContentType("application/json")
-				ctx.SetBody(responseBody)
-				return
-			default:
+			// ctx.SetStatusCode(http.StatusNotFound)
+			// ctx.SetContentType("application/json")
+			// ctx.SetBody(responseBody)
+			// return
+			fallthrough // API is weird there
+		case entity.ParentInAnotherThreadError:
+			responseBody, err := json.Marshal(entity.MessageOutput{"Parent post is in another thread"})
+			if err != nil {
 				ctx.SetStatusCode(http.StatusInternalServerError)
 				return
 			}
-		}
 
-		posts[i] = newPost
+			ctx.SetStatusCode(http.StatusConflict)
+			ctx.SetContentType("application/json")
+			ctx.SetBody(responseBody)
+			return
+		case entity.UserNotFoundError:
+			responseBody, err := json.Marshal(entity.MessageOutput{"Could not find user"})
+			if err != nil {
+				ctx.SetStatusCode(http.StatusInternalServerError)
+				return
+			}
+
+			ctx.SetStatusCode(http.StatusNotFound)
+			ctx.SetContentType("application/json")
+			ctx.SetBody(responseBody)
+			return
+		default:
+			fmt.Println(err)
+			ctx.SetStatusCode(http.StatusInternalServerError)
+			return
+		}
 	}
 
-	responseBody, err := json.Marshal(entity.Posts(posts))
+	responseBody, err := json.Marshal(entity.Posts(newPosts))
 	if err != nil {
 		ctx.SetStatusCode(http.StatusInternalServerError)
 		return
